@@ -1,21 +1,29 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from supabase import create_client
 import anthropic
 import os
+import re
+import json
 from datetime import datetime
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = JSONResponse(content={}, status_code=200)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
-# Supabase & Anthropic clients
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 claude = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -57,7 +65,6 @@ Sei freundlich, präzise und professionell."""
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    # Alle Kontakte aus DB laden
     result = supabase.table("contacts").select("*").execute()
     contacts = result.data
 
@@ -87,9 +94,7 @@ Nutzer-Nachricht ({req.language}): {req.message}"""
 
     response_text = response.content[0].text
 
-    # DB-Aktion verarbeiten
     if "<db_action>" in response_text:
-        import json, re
         match = re.search(r'<db_action>(.*?)</db_action>', response_text, re.DOTALL)
         if match:
             try:
@@ -123,9 +128,7 @@ Nutzer-Nachricht ({req.language}): {req.message}"""
             except Exception as e:
                 print(f"DB action error: {e}")
 
-    # <db_action> Block aus Antwort entfernen
     clean_response = re.sub(r'<db_action>.*?</db_action>', '', response_text, flags=re.DOTALL).strip()
-
     return {"reply": clean_response}
 
 @app.get("/contacts")
