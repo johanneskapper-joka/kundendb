@@ -86,7 +86,7 @@ async def chat(req: ChatRequest):
 Nutzer-Nachricht ({req.language}): {req.message}"""
 
     response = claude.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5",
         max_tokens=1000,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}]
