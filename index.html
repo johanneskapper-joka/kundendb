@@ -289,12 +289,12 @@
           onkeydown="handleKey(event)"
           oninput="autoResize(this)"
         ></textarea>
-        <button class="action-btn mic-btn" id="micBtn" onclick="toggleMic()" title="Spracheingabe">🎤</button>
+        <button class="action-btn mic-btn" id="micBtn" title="Gedrückt halten zum Sprechen" onmousedown="startMic()" onmouseup="stopMic()" onmouseleave="stopMic()" ontouchstart="startMic(event)" ontouchend="stopMic()">🎤</button>
         <button class="action-btn send-btn" id="sendBtn" onclick="sendMessage()" title="Senden">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </div>
-      <div class="input-hint">Enter zum Senden · Shift+Enter für neue Zeile · 🎤 für Spracheingabe</div>
+      <div class="input-hint">Enter zum Senden · Shift+Enter für neue Zeile · 🎤 gedrückt halten zum Sprechen</div>
     </div>
   </div>
 </div>
@@ -503,49 +503,70 @@
     sendMessage();
   }
 
-  // 🎤 Spracheingabe
+  // 🎤 Push-to-Talk Spracheingabe
   let recognition = null;
   let isRecording = false;
 
-  function toggleMic() {
+  function startMic(e) {
+    if (e) e.preventDefault();
+    if (isRecording) return;
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       alert('Bitte Chrome oder Edge verwenden für Spracheingabe.');
       return;
     }
-    if (isRecording) { recognition.stop(); return; }
+
+    // Laufende Sprachausgabe stoppen
+    if (currentAudio) {
+      try { currentAudio.pause(); } catch(e) {}
+      currentAudio = null;
+      document.querySelectorAll('.speak-btn').forEach(b => { b.textContent = '🔊 Vorlesen'; b.classList.remove('speaking', 'loading'); });
+    }
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
     recognition.lang = currentLang === 'de' ? 'de-DE' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    const btn = document.getElementById('micBtn');
 
     recognition.onstart = () => {
       isRecording = true;
-      document.getElementById('micBtn').classList.add('recording');
-      document.getElementById('micBtn').textContent = '⏹️';
+      btn.classList.add('recording');
+      btn.textContent = '🔴';
     };
 
     recognition.onresult = (e) => {
-      document.getElementById('messageInput').value = e.results[0][0].transcript;
+      let transcript = '';
+      for (let i = 0; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript;
+      }
+      document.getElementById('messageInput').value = transcript;
       autoResize(document.getElementById('messageInput'));
       voiceMode = true;
     };
 
     recognition.onend = () => {
       isRecording = false;
-      document.getElementById('micBtn').classList.remove('recording');
-      document.getElementById('micBtn').textContent = '🎤';
+      btn.classList.remove('recording');
+      btn.textContent = '🎤';
       if (document.getElementById('messageInput').value.trim()) sendMessage();
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (e) => {
+      if (e.error === 'aborted') return;
       isRecording = false;
-      document.getElementById('micBtn').classList.remove('recording');
-      document.getElementById('micBtn').textContent = '🎤';
+      btn.classList.remove('recording');
+      btn.textContent = '🎤';
     };
 
     recognition.start();
+  }
+
+  function stopMic() {
+    if (recognition && isRecording) {
+      recognition.stop();
+    }
   }
 
   // 🔊 ElevenLabs Sprachausgabe
