@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 from pydantic import BaseModel
 from supabase import create_client
 import anthropic
@@ -8,7 +8,7 @@ import re
 import json
 import httpx
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 app = FastAPI()
 
@@ -30,11 +30,10 @@ supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 claude = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 
-# Stimmen pro Sprache
 VOICE_IDS = {
-    "de": "pNInz6obpgDQGcFmaJgB",  # Adam – klar und natürlich
-    "fr": "VR6AewLTigWG4xSOukaG",  # Arnold – französisch
-    "en": "21m00Tcm4TlvDq8ikWAM",  # Rachel – englisch
+    "de": "pNInz6obpgDQGcFmaJgB",
+    "fr": "VR6AewLTigWG4xSOukaG",
+    "en": "21m00Tcm4TlvDq8ikWAM",
 }
 
 class Message(BaseModel):
@@ -53,18 +52,10 @@ Du hast Zugriff auf eine Kundendatenbank und kannst:
 - Neue Informationen zu Kunden erfassen und speichern
 - Bestehende Kundeninformationen abrufen und zusammenfassen
 - Zusammenhänge zwischen Kunden erkennen
-- Proaktiv Vorschläge machen (z.B. Folgetermine, offene Punkte)
+- Proaktiv Vorschläge machen
 - In der Sprache des Nutzers antworten (Deutsch, Französisch, Englisch)
 
-Die Datenbank enthält folgende Felder pro Kontakt:
-- company_name: Firmenname
-- contact_name: Ansprechpartner
-- email: E-Mail
-- phone: Telefon
-- language: bevorzugte Sprache des Kunden
-- notes: Freitext-Notizen
-- last_contact: Datum des letzten Kontakts
-- status: aktiv, interessiert, inaktiv
+Felder: company_name, contact_name, email, phone, language, notes, last_contact, status (aktiv/interessiert/inaktiv)
 
 Wenn der Nutzer neue Infos nennt, antworte IMMER mit einem JSON-Block:
 <db_action>
@@ -78,8 +69,7 @@ Wenn der Nutzer neue Infos nennt, antworte IMMER mit einem JSON-Block:
 }
 </db_action>
 
-Dann antworte dem Nutzer normal in seiner Sprache.
-Sei wie ein erfahrener Kollege – kurz, präzise, proaktiv."""
+Antworte dann normal in der Sprache des Nutzers. Sei wie ein erfahrener Kollege – kurz, präzise, proaktiv."""
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
@@ -93,28 +83,18 @@ async def chat(req: ChatRequest):
         f"Letzter Kontakt: {c.get('last_contact','')}\n"
         f"Notizen: {c.get('notes','')}"
         for c in contacts
-    ]) if contacts else "Noch keine Kontakte vorhanden."
+    ]) if contacts else "Noch keine Kontakte."
 
-    # Gesprächshistorie aufbauen
     messages = []
-    
-    # Erste Nachricht enthält immer die DB
-    first_content = f"Aktuelle Kundendatenbank:\n{contacts_text}\n\n---\nNutzer-Nachricht ({req.language}): "
-    
+    db_prefix = f"Kundendatenbank:\n{contacts_text}\n\n---\nNachricht ({req.language}): "
+
     if req.history:
-        # Erster Eintrag mit DB-Kontext
-        first_msg = req.history[0]
-        messages.append({
-            "role": first_msg.role,
-            "content": first_content + first_msg.content
-        })
-        # Rest der Historie normal
+        messages.append({"role": req.history[0].role, "content": db_prefix + req.history[0].content})
         for msg in req.history[1:]:
             messages.append({"role": msg.role, "content": msg.content})
-        # Aktuelle Nachricht
         messages.append({"role": "user", "content": req.message})
     else:
-        messages.append({"role": "user", "content": first_content + req.message})
+        messages.append({"role": "user", "content": db_prefix + req.message})
 
     response = claude.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -125,7 +105,6 @@ async def chat(req: ChatRequest):
 
     response_text = response.content[0].text
 
-    # DB-Aktion verarbeiten
     if "<db_action>" in response_text:
         match = re.search(r'<db_action>(.*?)</db_action>', response_text, re.DOTALL)
         if match:
@@ -133,9 +112,7 @@ async def chat(req: ChatRequest):
                 action_data = json.loads(match.group(1).strip())
                 action = action_data.get("action")
                 if action in ["create", "update"] and action_data.get("company_name"):
-                    existing = supabase.table("contacts").select("*").eq(
-                        "company_name", action_data["company_name"]
-                    ).execute()
+                    existing = supabase.table("contacts").select("*").eq("company_name", action_data["company_name"]).execute()
                     update_payload = {
                         "company_name": action_data.get("company_name"),
                         "status": action_data.get("status"),
@@ -149,14 +126,12 @@ async def chat(req: ChatRequest):
                         new_note = action_data.get("notes_append", "")
                         if new_note:
                             update_payload["notes"] = f"{old_notes}\n[{datetime.today().strftime('%d.%m.%Y')}] {new_note}".strip()
-                        supabase.table("contacts").update(update_payload).eq(
-                            "company_name", action_data["company_name"]
-                        ).execute()
+                        supabase.table("contacts").update(update_payload).eq("company_name", action_data["company_name"]).execute()
                     else:
                         update_payload["notes"] = action_data.get("notes_append", "")
                         supabase.table("contacts").insert(update_payload).execute()
             except Exception as e:
-                print(f"DB action error: {e}")
+                print(f"DB error: {e}")
 
     clean_response = re.sub(r'<db_action>.*?</db_action>', '', response_text, flags=re.DOTALL).strip()
     return {"reply": clean_response}
@@ -164,42 +139,50 @@ async def chat(req: ChatRequest):
 
 @app.post("/speak")
 async def speak(request: Request):
-    body = await request.json()
-    text = body.get("text", "")
-    lang = body.get("language", "de")
-    
-    if not ELEVENLABS_API_KEY:
-        return JSONResponse({"error": "No ElevenLabs key"}, status_code=400)
+    try:
+        body = await request.json()
+        text = body.get("text", "")
+        lang = body.get("language", "de")
 
-    voice_id = VOICE_IDS.get(lang, VOICE_IDS["de"])
-    
-    # Text bereinigen
-    clean = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-    clean = re.sub(r'[*#]', '', clean).strip()
+        print(f"SPEAK: lang={lang}, key={bool(ELEVENLABS_API_KEY)}, chars={len(text)}")
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
-            headers={
-                "xi-api-key": ELEVENLABS_API_KEY,
-                "Content-Type": "application/json"
-            },
-            json={
-                "text": clean,
-                "model_id": "eleven_multilingual_v2",
-                "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
-            },
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            return StreamingResponse(
-                iter([response.content]),
+        if not ELEVENLABS_API_KEY:
+            return JSONResponse({"error": "No ElevenLabs key"}, status_code=400)
+
+        voice_id = VOICE_IDS.get(lang, VOICE_IDS["de"])
+        clean = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        clean = re.sub(r'[*#<>]', '', clean).strip()[:2000]
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            el_response = await client.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                headers={
+                    "xi-api-key": ELEVENLABS_API_KEY,
+                    "Content-Type": "application/json",
+                    "Accept": "audio/mpeg"
+                },
+                json={
+                    "text": clean,
+                    "model_id": "eleven_multilingual_v2",
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+                }
+            )
+
+        print(f"ElevenLabs status: {el_response.status_code}")
+
+        if el_response.status_code == 200:
+            return Response(
+                content=el_response.content,
                 media_type="audio/mpeg",
                 headers={"Access-Control-Allow-Origin": "*"}
             )
         else:
-            return JSONResponse({"error": "ElevenLabs error"}, status_code=500)
+            print(f"ElevenLabs error: {el_response.text}")
+            return JSONResponse({"error": f"ElevenLabs {el_response.status_code}"}, status_code=500)
+
+    except Exception as e:
+        print(f"SPEAK exception: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.get("/contacts")
@@ -209,4 +192,4 @@ async def get_contacts():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "elevenlabs": bool(ELEVENLABS_API_KEY)}
