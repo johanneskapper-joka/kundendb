@@ -451,6 +451,34 @@
 
   .send-btn svg { width: 18px; height: 18px; fill: #0f0f0f; }
 
+  .mic-btn {
+    width: 38px;
+    height: 38px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    font-size: 18px;
+  }
+  .mic-btn:hover { border-color: var(--accent); }
+  .mic-btn.recording { background: #2e1a1a; border-color: #e05555; animation: pulse 1s infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(224,85,85,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(224,85,85,0); }
+  }
+  .speak-btn {
+    background: none; border: none; cursor: pointer; font-size: 13px;
+    color: var(--text-muted); padding: 2px 6px; border-radius: 6px;
+    transition: all 0.2s; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .speak-btn:hover { color: var(--accent); }
+  .speak-btn.speaking { color: var(--accent); }
+
   .input-hint {
     font-size: 11px;
     color: var(--text-muted);
@@ -531,6 +559,7 @@
           onkeydown="handleKey(event)"
           oninput="autoResize(this)"
         ></textarea>
+        <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Spracheingabe">🎤</button>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
@@ -699,6 +728,78 @@
     };
     document.getElementById('messageInput').value = phrases[currentLang];
     sendMessage();
+  }
+
+  // Spracheingabe
+  let recognition = null;
+  let isRecording = false;
+
+  function toggleMic() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Dein Browser unterstützt keine Spracheingabe. Bitte Chrome verwenden.');
+      return;
+    }
+    if (isRecording) {
+      recognition.stop();
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = currentLang === 'de' ? 'de-DE' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      isRecording = true;
+      document.getElementById('micBtn').classList.add('recording');
+      document.getElementById('micBtn').textContent = '⏹️';
+    };
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      document.getElementById('messageInput').value = transcript;
+      autoResize(document.getElementById('messageInput'));
+    };
+    recognition.onend = () => {
+      isRecording = false;
+      document.getElementById('micBtn').classList.remove('recording');
+      document.getElementById('micBtn').textContent = '🎤';
+      if (document.getElementById('messageInput').value.trim()) {
+        sendMessage();
+      }
+    };
+    recognition.onerror = () => {
+      isRecording = false;
+      document.getElementById('micBtn').classList.remove('recording');
+      document.getElementById('micBtn').textContent = '🎤';
+    };
+    recognition.start();
+  }
+
+  // Sprachausgabe
+  let currentUtterance = null;
+
+  function speakText(btn, text) {
+    if (currentUtterance) {
+      window.speechSynthesis.cancel();
+      document.querySelectorAll('.speak-btn').forEach(b => { b.textContent = '🔊 Vorlesen'; b.classList.remove('speaking'); });
+      if (btn.classList.contains('speaking') === false) return;
+      currentUtterance = null;
+      return;
+    }
+    const clean = text.replace(/<[^>]*>/g, '').replace(/[*#]/g, '');
+    const utter = new SpeechSynthesisUtterance(clean);
+    utter.lang = currentLang === 'de' ? 'de-DE' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
+    utter.onend = () => {
+      btn.textContent = '🔊 Vorlesen';
+      btn.classList.remove('speaking');
+      currentUtterance = null;
+    };
+    currentUtterance = utter;
+    btn.textContent = '⏹️ Stop';
+    btn.classList.add('speaking');
+    window.speechSynthesis.speak(utter);
   }
 
   // Start
