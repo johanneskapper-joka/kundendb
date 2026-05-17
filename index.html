@@ -623,13 +623,20 @@
     div.className = `message ${role}`;
 
     const avatar = role === 'user' ? '👤' : '✨';
+    const speakBtn = role === 'assistant'
+      ? '<button class="speak-btn" id="speak-" onclick="speakText(this)">🔊 Vorlesen</button>'
+      : '';
     div.innerHTML = `
       <div class="avatar">${avatar}</div>
       <div>
         <div class="bubble">${text.replace(/\n/g, '<br>')}</div>
-        <div class="bubble-time">${formatTime()}</div>
+        <div class="bubble-time">${formatTime()} ${speakBtn}</div>
       </div>
     `;
+    if (role === 'assistant') {
+      const btn = div.querySelector('.speak-btn');
+      if (btn) btn.dataset.text = text;
+    }
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
     return div;
@@ -778,11 +785,11 @@
   // Sprachausgabe
   let currentUtterance = null;
 
-  function speakText(btn, text) {
+  function speakText(btn) {
+    const text = btn.dataset.text || '';
     if (currentUtterance) {
       window.speechSynthesis.cancel();
       document.querySelectorAll('.speak-btn').forEach(b => { b.textContent = '🔊 Vorlesen'; b.classList.remove('speaking'); });
-      if (btn.classList.contains('speaking') === false) return;
       currentUtterance = null;
       return;
     }
