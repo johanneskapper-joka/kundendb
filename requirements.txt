@@ -4,3 +4,4 @@ supabase
 anthropic
 pydantic
 python-dotenv
+httpx
