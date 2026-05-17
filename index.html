@@ -33,473 +33,206 @@
     overflow: hidden;
   }
 
-  /* Header */
   header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 28px;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
     flex-shrink: 0;
+    gap: 10px;
   }
 
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
+  .logo { display: flex; align-items: center; gap: 10px; }
   .logo-icon {
-    width: 38px;
-    height: 38px;
+    width: 34px; height: 34px;
     background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
+    border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px;
   }
+  .logo-text { font-family: 'DM Serif Display', serif; font-size: 20px; }
+  .logo-text span { color: var(--accent); }
 
-  .logo-text {
-    font-family: 'DM Serif Display', serif;
-    font-size: 22px;
-    letter-spacing: -0.5px;
-    color: var(--text);
-  }
+  .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-  .logo-text span {
-    color: var(--accent);
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  /* Language selector */
   .lang-selector {
-    display: flex;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
+    display: flex; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
   }
-
   .lang-btn {
-    padding: 7px 14px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all 0.2s;
+    padding: 6px 11px; background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; transition: all 0.2s;
   }
+  .lang-btn.active { background: var(--accent); color: #0f0f0f; }
+  .lang-btn:hover:not(.active) { color: var(--text); }
 
-  .lang-btn.active {
-    background: var(--accent);
-    color: #0f0f0f;
+  .icon-btn {
+    padding: 7px 13px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text-muted); cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    transition: all 0.2s; display: flex; align-items: center; gap: 5px; white-space: nowrap;
   }
+  .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+  .icon-btn.active { border-color: var(--accent); color: var(--accent); }
 
-  .lang-btn:hover:not(.active) {
-    color: var(--text);
-  }
+  .main { display: flex; flex: 1; overflow: hidden; position: relative; }
 
-  /* Contacts sidebar toggle */
-  .contacts-btn {
-    padding: 8px 16px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .contacts-btn:hover { color: var(--text); border-color: var(--accent); }
-
-  /* Main layout */
-  .main {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  /* Sidebar */
   .sidebar {
-    width: 300px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.3s ease;
-    flex-shrink: 0;
+    width: 270px; background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0;
+    transition: width 0.3s ease, opacity 0.3s ease; overflow: hidden;
   }
-
-  .sidebar.hidden {
-    transform: translateX(-100%);
-    width: 0;
-    overflow: hidden;
-  }
+  .sidebar.hidden { width: 0; opacity: 0; pointer-events: none; }
 
   .sidebar-header {
-    padding: 18px 20px 14px;
-    border-bottom: 1px solid var(--border);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--text-muted);
+    padding: 14px 16px 10px; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
   }
-
-  .sidebar-search {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
+  .sidebar-search { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .sidebar-search input {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.2s;
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 10px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s;
   }
-
   .sidebar-search input:focus { border-color: var(--accent); }
   .sidebar-search input::placeholder { color: var(--text-muted); }
 
-  .contacts-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  }
-
+  .contacts-list { flex: 1; overflow-y: auto; padding: 6px; }
   .contact-card {
-    padding: 12px 14px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.2s;
-    border: 1px solid transparent;
-    margin-bottom: 4px;
+    padding: 10px 12px; border-radius: 10px; cursor: pointer;
+    transition: background 0.2s; border: 1px solid transparent; margin-bottom: 3px;
   }
-
-  .contact-card:hover {
-    background: var(--surface2);
-    border-color: var(--border);
-  }
-
-  .contact-company {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--text);
-    margin-bottom: 2px;
-  }
-
-  .contact-name {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
+  .contact-card:hover { background: var(--surface2); border-color: var(--border); }
+  .contact-company { font-weight: 600; font-size: 13px; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contact-name { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .contact-status {
-    display: inline-block;
-    margin-top: 6px;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 500;
-    background: var(--surface2);
-    color: var(--text-muted);
+    display: inline-block; margin-top: 4px; padding: 2px 7px;
+    border-radius: 20px; font-size: 11px; font-weight: 500; background: var(--surface2); color: var(--text-muted);
   }
-
   .contact-status.aktiv { background: #1a2e1a; color: var(--success); }
   .contact-status.interessiert { background: #1a1a2e; color: #7eb8e8; }
 
-  /* Chat area */
-  .chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
   .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 28px 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    flex: 1; overflow-y: auto; padding: 22px 22px;
+    display: flex; flex-direction: column; gap: 16px;
   }
-
   .messages::-webkit-scrollbar { width: 4px; }
-  .messages::-webkit-scrollbar-track { background: transparent; }
   .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  /* Welcome state */
   .welcome {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 40px;
-    gap: 16px;
-    opacity: 0;
-    animation: fadeIn 0.6s ease forwards 0.3s;
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 40px 20px; gap: 14px;
   }
-
   .welcome-icon {
-    width: 64px;
-    height: 64px;
+    width: 60px; height: 60px;
     background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 30px;
-    margin-bottom: 8px;
+    border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 6px;
   }
-
-  .welcome h2 {
-    font-family: 'DM Serif Display', serif;
-    font-size: 26px;
-    color: var(--text);
-  }
-
-  .welcome p {
-    font-size: 14px;
-    color: var(--text-muted);
-    max-width: 380px;
-    line-height: 1.7;
-  }
-
-  .suggestions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    margin-top: 8px;
-  }
-
+  .welcome h2 { font-family: 'DM Serif Display', serif; font-size: 24px; }
+  .welcome p { font-size: 14px; color: var(--text-muted); max-width: 340px; line-height: 1.7; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 6px; }
   .suggestion {
-    padding: 8px 16px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    font-size: 13px;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.2s;
+    padding: 7px 14px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: all 0.2s;
   }
+  .suggestion:hover { border-color: var(--accent); color: var(--accent); }
 
-  .suggestion:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* Message bubbles */
-  .message {
-    display: flex;
-    gap: 12px;
-    opacity: 0;
-    animation: slideIn 0.3s ease forwards;
-    max-width: 780px;
-  }
-
-  .message.user { flex-direction: row-reverse; align-self: flex-end; }
-  .message.assistant { align-self: flex-start; }
+  .message { display: flex; gap: 10px; opacity: 0; animation: slideIn 0.3s ease forwards; }
+  .message.user { flex-direction: row-reverse; align-self: flex-end; max-width: 85%; }
+  .message.assistant { align-self: flex-start; max-width: 85%; }
 
   .avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
-    margin-top: 2px;
+    width: 32px; height: 32px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; margin-top: 2px;
+  }
+  .message.user .avatar { background: linear-gradient(135deg, #2a3a2a, #3a5a3a); }
+  .message.assistant .avatar { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+
+  .bubble { padding: 12px 16px; border-radius: var(--radius); font-size: 14px; line-height: 1.7; }
+  .message.user .bubble { background: var(--user-bubble); border: 1px solid #2a3a2a; border-top-right-radius: 4px; }
+  .message.assistant .bubble { background: var(--ai-bubble); border: 1px solid #1e1e3a; border-top-left-radius: 4px; }
+
+  .bubble-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .bubble-time { font-size: 11px; color: var(--text-muted); }
+
+  .speak-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 14px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; color: var(--text-muted); cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; transition: all 0.2s;
+  }
+  .speak-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .speak-btn.speaking { background: #1a1a2e; border-color: var(--accent); color: var(--accent); animation: speakPulse 1.5s infinite; }
+  .speak-btn.loading { opacity: 0.6; cursor: wait; }
+
+  @keyframes speakPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(200,169,110,0.3); }
+    50% { box-shadow: 0 0 0 5px rgba(200,169,110,0); }
   }
 
-  .message.user .avatar {
-    background: linear-gradient(135deg, #2a3a2a, #3a5a3a);
-  }
-
-  .message.assistant .avatar {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-  }
-
-  .bubble {
-    padding: 14px 18px;
-    border-radius: var(--radius);
-    font-size: 14px;
-    line-height: 1.7;
-    max-width: 600px;
-  }
-
-  .message.user .bubble {
-    background: var(--user-bubble);
-    border: 1px solid #2a3a2a;
-    border-top-right-radius: 4px;
-  }
-
-  .message.assistant .bubble {
-    background: var(--ai-bubble);
-    border: 1px solid #1e1e3a;
-    border-top-left-radius: 4px;
-  }
-
-  .bubble-time {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 6px;
-  }
-
-  /* Typing indicator */
   .typing {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 14px 18px;
-    background: var(--ai-bubble);
-    border: 1px solid #1e1e3a;
-    border-radius: var(--radius);
-    border-top-left-radius: 4px;
-    width: fit-content;
+    display: flex; align-items: center; gap: 5px; padding: 12px 16px;
+    background: var(--ai-bubble); border: 1px solid #1e1e3a;
+    border-radius: var(--radius); border-top-left-radius: 4px; width: fit-content;
   }
-
   .typing span {
-    width: 7px;
-    height: 7px;
-    background: var(--accent);
-    border-radius: 50%;
-    animation: bounce 1.2s infinite;
-    opacity: 0.5;
+    width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+    animation: bounce 1.2s infinite; opacity: 0.5;
   }
-
   .typing span:nth-child(2) { animation-delay: 0.2s; }
   .typing span:nth-child(3) { animation-delay: 0.4s; }
 
-  /* Input area */
   .input-area {
-    padding: 20px 28px 24px;
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    flex-shrink: 0;
+    padding: 14px 18px 18px; border-top: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0;
   }
-
   .input-wrapper {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 12px 14px;
-    transition: border-color 0.2s;
+    display: flex; gap: 8px; align-items: flex-end;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 10px 12px; transition: border-color 0.2s;
   }
-
   .input-wrapper:focus-within { border-color: var(--accent); }
 
   textarea {
-    flex: 1;
-    background: none;
-    border: none;
-    outline: none;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    resize: none;
-    max-height: 120px;
-    line-height: 1.6;
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; resize: none; max-height: 120px; line-height: 1.6;
   }
-
   textarea::placeholder { color: var(--text-muted); }
 
-  .send-btn {
-    width: 38px;
-    height: 38px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: opacity 0.2s, transform 0.1s;
+  .action-btn {
+    width: 38px; height: 38px; border: none; border-radius: 10px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.2s; font-size: 17px;
   }
+  .mic-btn { background: var(--surface); border: 1px solid var(--border) !important; }
+  .mic-btn:hover { border-color: var(--accent) !important; }
+  .mic-btn.recording { background: #2e1a1a; border-color: #e05555 !important; animation: recPulse 1s infinite; }
 
+  .send-btn { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
   .send-btn:hover { opacity: 0.9; transform: scale(1.05); }
-  .send-btn:active { transform: scale(0.95); }
   .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .send-btn svg { width: 17px; height: 17px; fill: #0f0f0f; }
 
-  .send-btn svg { width: 18px; height: 18px; fill: #0f0f0f; }
+  .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 7px; text-align: center; }
 
-  .mic-btn {
-    width: 38px;
-    height: 38px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.2s;
-    font-size: 18px;
-  }
-  .mic-btn:hover { border-color: var(--accent); }
-  .mic-btn.recording { background: #2e1a1a; border-color: #e05555; animation: pulse 1s infinite; }
-  @keyframes pulse {
+  @keyframes recPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(224,85,85,0.4); }
     50% { box-shadow: 0 0 0 6px rgba(224,85,85,0); }
   }
-  .speak-btn {
-    background: none; border: none; cursor: pointer; font-size: 13px;
-    color: var(--text-muted); padding: 2px 6px; border-radius: 6px;
-    transition: all 0.2s; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px;
-  }
-  .speak-btn:hover { color: var(--accent); }
-  .speak-btn.speaking { color: var(--accent); }
-
-  .input-hint {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 8px;
-    text-align: center;
-  }
-
-  /* Animations */
-  @keyframes fadeIn { to { opacity: 1; } }
   @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-6px); opacity: 1; } }
 
-  /* Scrollbar */
   .contacts-list::-webkit-scrollbar { width: 4px; }
-  .contacts-list::-webkit-scrollbar-track { background: transparent; }
   .contacts-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  @media (max-width: 640px) {
-    .sidebar { position: absolute; z-index: 10; height: 100%; }
-    .messages { padding: 20px 16px; }
-    .input-area { padding: 14px 16px 18px; }
+  @media (max-width: 600px) {
+    .sidebar { position: absolute; z-index: 20; height: 100%; box-shadow: 4px 0 20px rgba(0,0,0,0.5); }
+    .messages { padding: 14px 12px; }
+    .input-area { padding: 10px 12px 14px; }
   }
 </style>
 </head>
@@ -511,27 +244,24 @@
     <div class="logo-text">Kunden<span>DB</span></div>
   </div>
   <div class="header-right">
+    <button class="icon-btn" id="sidebarToggle" onclick="toggleSidebar()">👥 Kontakte</button>
+    <button class="icon-btn" onclick="clearHistory()" title="Gespräch neu starten">🔄 Neu</button>
     <div class="lang-selector">
       <button class="lang-btn active" onclick="setLang('de', this)">🇩🇪 DE</button>
       <button class="lang-btn" onclick="setLang('fr', this)">🇫🇷 FR</button>
       <button class="lang-btn" onclick="setLang('en', this)">🇬🇧 EN</button>
     </div>
-    <button class="contacts-btn" onclick="toggleSidebar()">
-      <span>👥</span> Kontakte
-    </button>
   </div>
 </header>
 
 <div class="main">
-  <div class="sidebar" id="sidebar">
+  <div class="sidebar hidden" id="sidebar">
     <div class="sidebar-header">Alle Kontakte</div>
     <div class="sidebar-search">
       <input type="text" id="searchInput" placeholder="Suchen..." oninput="filterContacts()">
     </div>
     <div class="contacts-list" id="contactsList">
-      <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
-        Wird geladen...
-      </div>
+      <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Wird geladen...</div>
     </div>
   </div>
 
@@ -540,11 +270,11 @@
       <div class="welcome" id="welcome">
         <div class="welcome-icon">🤝</div>
         <h2>Willkommen bei KundenDB</h2>
-        <p>Sprich einfach mit mir über deine Kunden. Ich merke mir alles, rufe Infos ab und halte deine Datenbank aktuell.</p>
+        <p>Sprich oder schreib mit mir – ich erinnere mich an unser ganzes Gespräch und denke mit.</p>
         <div class="suggestions">
           <div class="suggestion" onclick="useSuggestion(this)">Was weißt du über Müller GmbH?</div>
-          <div class="suggestion" onclick="useSuggestion(this)">Trag ein: Schmidt AG hat angerufen</div>
-          <div class="suggestion" onclick="useSuggestion(this)">Welche Kunden sind aktiv?</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Welche Kunden sind seit 2 Monaten inaktiv?</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Trag ein: Schmidt AG hat heute angerufen</div>
           <div class="suggestion" onclick="useSuggestion(this)">Qui sont mes clients intéressés?</div>
         </div>
       </div>
@@ -554,42 +284,58 @@
       <div class="input-wrapper">
         <textarea
           id="messageInput"
-          placeholder="Schreib etwas über einen Kunden..."
+          placeholder="Schreib oder sprich mit mir über deine Kunden..."
           rows="1"
           onkeydown="handleKey(event)"
           oninput="autoResize(this)"
         ></textarea>
-        <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Spracheingabe">🎤</button>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+        <button class="action-btn mic-btn" id="micBtn" onclick="toggleMic()" title="Spracheingabe">🎤</button>
+        <button class="action-btn send-btn" id="sendBtn" onclick="sendMessage()" title="Senden">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </div>
-      <div class="input-hint">Enter zum Senden · Shift+Enter für neue Zeile</div>
+      <div class="input-hint">Enter zum Senden · Shift+Enter für neue Zeile · 🎤 für Spracheingabe</div>
     </div>
   </div>
 </div>
 
 <script>
-  // ⚠️ HIER deine Backend-URL eintragen (nach Render-Deployment)
   const BACKEND_URL = "https://kundendb.onrender.com";
 
   let currentLang = "de";
   let allContacts = [];
-  let sidebarVisible = true;
+  let sidebarVisible = false;
+  let voiceMode = false;
+  let conversationHistory = []; // Gesprächsgedächtnis
+  let currentAudio = null;
+
+  function toggleSidebar() {
+    sidebarVisible = !sidebarVisible;
+    document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
+    document.getElementById('sidebarToggle').classList.toggle('active', sidebarVisible);
+    if (sidebarVisible) loadContacts();
+  }
+
+  function clearHistory() {
+    conversationHistory = [];
+    document.getElementById('messages').innerHTML = '';
+    const welcome = document.createElement('div');
+    welcome.className = 'welcome';
+    welcome.id = 'welcome';
+    welcome.innerHTML = `
+      <div class="welcome-icon">🤝</div>
+      <h2>Neues Gespräch</h2>
+      <p>Das Gespräch wurde zurückgesetzt. Womit kann ich dir helfen?</p>
+    `;
+    document.getElementById('messages').appendChild(welcome);
+  }
 
   function setLang(lang, btn) {
     currentLang = lang;
     document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('messageInput').placeholder =
-      lang === 'de' ? 'Schreib etwas über einen Kunden...' :
-      lang === 'fr' ? 'Écris quelque chose sur un client...' :
-      'Write something about a customer...';
-  }
-
-  function toggleSidebar() {
-    sidebarVisible = !sidebarVisible;
-    document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
+    const p = { de: 'Schreib oder sprich mit mir über deine Kunden...', fr: "Écris ou parle d'un client...", en: 'Write or speak about a customer...' };
+    document.getElementById('messageInput').placeholder = p[lang];
   }
 
   function autoResize(el) {
@@ -598,15 +344,11 @@
   }
 
   function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
 
   function useSuggestion(el) {
     document.getElementById('messageInput').value = el.textContent;
-    document.getElementById('welcome').style.display = 'none';
     sendMessage();
   }
 
@@ -622,21 +364,31 @@
     const div = document.createElement('div');
     div.className = `message ${role}`;
 
-    const avatar = role === 'user' ? '👤' : '✨';
-    const speakBtn = role === 'assistant'
-      ? '<button class="speak-btn" id="speak-" onclick="speakText(this)">🔊 Vorlesen</button>'
-      : '';
-    div.innerHTML = `
-      <div class="avatar">${avatar}</div>
-      <div>
-        <div class="bubble">${text.replace(/\n/g, '<br>')}</div>
-        <div class="bubble-time">${formatTime()} ${speakBtn}</div>
-      </div>
-    `;
     if (role === 'assistant') {
-      const btn = div.querySelector('.speak-btn');
-      if (btn) btn.dataset.text = text;
+      const formatted = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+      div.innerHTML = `
+        <div class="avatar">✨</div>
+        <div>
+          <div class="bubble">${formatted}</div>
+          <div class="bubble-meta">
+            <span class="bubble-time">${formatTime()}</span>
+            <button class="speak-btn" onclick="speakElevenLabs(this)">🔊 Vorlesen</button>
+          </div>
+        </div>
+      `;
+      div.querySelector('.speak-btn').dataset.text = text;
+    } else {
+      div.innerHTML = `
+        <div class="avatar">👤</div>
+        <div>
+          <div class="bubble">${text.replace(/\n/g, '<br>')}</div>
+          <div class="bubble-meta"><span class="bubble-time">${formatTime()}</span></div>
+        </div>
+      `;
     }
+
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
     return div;
@@ -647,10 +399,7 @@
     const div = document.createElement('div');
     div.className = 'message assistant';
     div.id = 'typing';
-    div.innerHTML = `
-      <div class="avatar">✨</div>
-      <div class="typing"><span></span><span></span><span></span></div>
-    `;
+    div.innerHTML = `<div class="avatar">✨</div><div class="typing"><span></span><span></span><span></span></div>`;
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
   }
@@ -673,16 +422,38 @@
     addMessage('user', text);
     showTyping();
 
+    const wasVoiceMode = voiceMode;
+    voiceMode = false;
+
     try {
       const res = await fetch(`${BACKEND_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, language: currentLang })
+        body: JSON.stringify({
+          message: text,
+          language: currentLang,
+          history: conversationHistory
+        })
       });
       const data = await res.json();
       removeTyping();
-      addMessage('assistant', data.reply || 'Keine Antwort erhalten.');
-      loadContacts();
+
+      const reply = data.reply || 'Keine Antwort erhalten.';
+
+      // Gesprächshistorie aktualisieren (max. 10 Nachrichten)
+      conversationHistory.push({ role: 'user', content: text });
+      conversationHistory.push({ role: 'assistant', content: reply });
+      if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
+
+      const msgDiv = addMessage('assistant', reply);
+
+      // Automatisch vorlesen bei Spracheingabe
+      if (wasVoiceMode) {
+        const speakBtn = msgDiv.querySelector('.speak-btn');
+        if (speakBtn) speakElevenLabs(speakBtn);
+      }
+
+      if (sidebarVisible) loadContacts();
     } catch (err) {
       removeTyping();
       addMessage('assistant', '⚠️ Verbindungsfehler. Bitte Backend-URL prüfen.');
@@ -699,18 +470,18 @@
       renderContacts(allContacts);
     } catch (e) {
       document.getElementById('contactsList').innerHTML =
-        '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Backend nicht erreichbar</div>';
+        '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nicht erreichbar</div>';
     }
   }
 
   function renderContacts(contacts) {
     const list = document.getElementById('contactsList');
-    if (!contacts.length) {
+    if (!contacts || !contacts.length) {
       list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Noch keine Kontakte</div>';
       return;
     }
     list.innerHTML = contacts.map(c => `
-      <div class="contact-card" onclick="askAbout('${c.company_name}')">
+      <div class="contact-card" onclick="askAbout('${(c.company_name||'').replace(/'/g,"\\'")}')">
         <div class="contact-company">${c.company_name || '–'}</div>
         <div class="contact-name">${c.contact_name || ''}</div>
         ${c.status ? `<div class="contact-status ${c.status.toLowerCase()}">${c.status}</div>` : ''}
@@ -720,38 +491,31 @@
 
   function filterContacts() {
     const q = document.getElementById('searchInput').value.toLowerCase();
-    const filtered = allContacts.filter(c =>
-      (c.company_name || '').toLowerCase().includes(q) ||
-      (c.contact_name || '').toLowerCase().includes(q)
-    );
-    renderContacts(filtered);
+    renderContacts(allContacts.filter(c =>
+      (c.company_name||'').toLowerCase().includes(q) ||
+      (c.contact_name||'').toLowerCase().includes(q)
+    ));
   }
 
   function askAbout(company) {
-    const phrases = {
-      de: `Was weißt du über ${company}?`,
-      fr: `Que sais-tu sur ${company}?`,
-      en: `What do you know about ${company}?`
-    };
+    const phrases = { de: `Was weißt du über ${company}?`, fr: `Que sais-tu sur ${company}?`, en: `What do you know about ${company}?` };
     document.getElementById('messageInput').value = phrases[currentLang];
     sendMessage();
   }
 
-  // Spracheingabe
+  // 🎤 Spracheingabe
   let recognition = null;
   let isRecording = false;
 
   function toggleMic() {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Dein Browser unterstützt keine Spracheingabe. Bitte Chrome verwenden.');
+      alert('Bitte Chrome oder Edge verwenden für Spracheingabe.');
       return;
     }
-    if (isRecording) {
-      recognition.stop();
-      return;
-    }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
+    if (isRecording) { recognition.stop(); return; }
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
     recognition.lang = currentLang === 'de' ? 'de-DE' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -761,56 +525,73 @@
       document.getElementById('micBtn').classList.add('recording');
       document.getElementById('micBtn').textContent = '⏹️';
     };
+
     recognition.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      document.getElementById('messageInput').value = transcript;
+      document.getElementById('messageInput').value = e.results[0][0].transcript;
       autoResize(document.getElementById('messageInput'));
+      voiceMode = true;
     };
+
     recognition.onend = () => {
       isRecording = false;
       document.getElementById('micBtn').classList.remove('recording');
       document.getElementById('micBtn').textContent = '🎤';
-      if (document.getElementById('messageInput').value.trim()) {
-        sendMessage();
-      }
+      if (document.getElementById('messageInput').value.trim()) sendMessage();
     };
+
     recognition.onerror = () => {
       isRecording = false;
       document.getElementById('micBtn').classList.remove('recording');
       document.getElementById('micBtn').textContent = '🎤';
     };
+
     recognition.start();
   }
 
-  // Sprachausgabe
-  let currentUtterance = null;
-
-  function speakText(btn) {
-    const text = btn.dataset.text || '';
-    if (currentUtterance) {
-      window.speechSynthesis.cancel();
-      document.querySelectorAll('.speak-btn').forEach(b => { b.textContent = '🔊 Vorlesen'; b.classList.remove('speaking'); });
-      currentUtterance = null;
+  // 🔊 ElevenLabs Sprachausgabe
+  async function speakElevenLabs(btn) {
+    // Stop wenn gerade läuft
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+      document.querySelectorAll('.speak-btn').forEach(b => { b.textContent = '🔊 Vorlesen'; b.classList.remove('speaking', 'loading'); });
       return;
     }
-    const clean = text.replace(/<[^>]*>/g, '').replace(/[*#]/g, '');
-    const utter = new SpeechSynthesisUtterance(clean);
-    utter.lang = currentLang === 'de' ? 'de-DE' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
-    utter.rate = 1.0;
-    utter.pitch = 1.0;
-    utter.onend = () => {
-      btn.textContent = '🔊 Vorlesen';
-      btn.classList.remove('speaking');
-      currentUtterance = null;
-    };
-    currentUtterance = utter;
-    btn.textContent = '⏹️ Stop';
-    btn.classList.add('speaking');
-    window.speechSynthesis.speak(utter);
-  }
 
-  // Start
-  loadContacts();
+    const text = btn.dataset.text || '';
+    btn.textContent = '⏳ Wird geladen...';
+    btn.classList.add('loading');
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/speak`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, language: currentLang })
+      });
+
+      if (!res.ok) throw new Error('Fehler');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      currentAudio = new Audio(url);
+
+      btn.textContent = '⏹️ Stop';
+      btn.classList.remove('loading');
+      btn.classList.add('speaking');
+
+      currentAudio.onended = () => {
+        btn.textContent = '🔊 Vorlesen';
+        btn.classList.remove('speaking');
+        currentAudio = null;
+        URL.revokeObjectURL(url);
+      };
+
+      currentAudio.play();
+    } catch (e) {
+      btn.textContent = '🔊 Vorlesen';
+      btn.classList.remove('loading', 'speaking');
+    }
+  }
 </script>
 </body>
 </html>
