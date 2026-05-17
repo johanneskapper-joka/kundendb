@@ -571,23 +571,29 @@
 
       if (!res.ok) throw new Error('Fehler');
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      currentAudio = new Audio(url);
+      const arrayBuffer = await res.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioCtx.destination);
 
       btn.textContent = '⏹️ Stop';
       btn.classList.remove('loading');
       btn.classList.add('speaking');
 
-      currentAudio.onended = () => {
+      currentAudio = { pause: () => { source.stop(); audioCtx.close(); } };
+
+      source.onended = () => {
         btn.textContent = '🔊 Vorlesen';
         btn.classList.remove('speaking');
         currentAudio = null;
-        URL.revokeObjectURL(url);
+        audioCtx.close();
       };
 
-      currentAudio.play();
+      source.start();
     } catch (e) {
+      console.error('Speak error:', e);
       btn.textContent = '🔊 Vorlesen';
       btn.classList.remove('loading', 'speaking');
     }
