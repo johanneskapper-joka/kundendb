@@ -31,9 +31,9 @@ claude = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 
 VOICE_IDS = {
-    "de": "pNInz6obpgDQGcFmaJgB",
-    "fr": "VR6AewLTigWG4xSOukaG",
-    "en": "21m00Tcm4TlvDq8ikWAM",
+    "de": "1J0wWp4zPQIvsK7Xwh34",
+    "fr": "E4GQ42zEV1kwul03Bl16",
+    "en": "Gfpl8Yo74Is0W6cPUWWT",
 }
 
 class Message(BaseModel):
