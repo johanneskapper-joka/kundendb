@@ -92,9 +92,9 @@ async def chat(req: ChatRequest):
         messages.append({"role": req.history[0].role, "content": db_prefix + req.history[0].content})
         for msg in req.history[1:]:
             messages.append({"role": msg.role, "content": msg.content})
-        messages.append({"role": "user", "content": req.message})
+        messages.append({"role": "user", "content": req.message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
     else:
-        messages.append({"role": "user", "content": db_prefix + req.message})
+        messages.append({"role": "user", "content": db_prefix + req.message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
 
     response = claude.messages.create(
         model="claude-haiku-4-5-20251001",
