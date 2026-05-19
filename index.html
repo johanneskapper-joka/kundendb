@@ -584,10 +584,16 @@
   }
 
   // 🔊 ElevenLabs Sprachausgabe
+  // Verstecktes Audio-Element für iOS Kompatibilität
+  const _audioEl = document.createElement('audio');
+  _audioEl.setAttribute('playsinline', '');
+  _audioEl.setAttribute('webkit-playsinline', '');
+  document.body.appendChild(_audioEl);
+
   async function speakElevenLabs(btn) {
-    // Stop wenn gerade läuft
     if (currentAudio) {
-      currentAudio.pause();
+      _audioEl.pause();
+      _audioEl.src = '';
       currentAudio = null;
       document.querySelectorAll('.speak-btn').forEach(b => { b.textContent = '🔊 Vorlesen'; b.classList.remove('speaking', 'loading'); });
       return;
@@ -606,33 +612,32 @@
 
       if (!res.ok) throw new Error('Fehler');
 
-      const arrayBuffer = await res.arrayBuffer();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
 
-      // iOS: AudioContext wiederverwenden
-      const audioCtx = window._sharedAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      window._sharedAudioCtx = audioCtx;
-
-      // iOS: AudioContext aufwecken falls suspended
-      if (audioCtx.state === 'suspended') await audioCtx.resume();
-
-      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-      const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioCtx.destination);
+      _audioEl.src = url;
+      _audioEl.load();
 
       btn.textContent = '⏹️ Stop';
       btn.classList.remove('loading');
       btn.classList.add('speaking');
+      currentAudio = _audioEl;
 
-      currentAudio = { pause: () => { try { source.stop(); } catch(e) {} } };
-
-      source.onended = () => {
+      _audioEl.onended = () => {
         btn.textContent = '🔊 Vorlesen';
         btn.classList.remove('speaking');
         currentAudio = null;
+        URL.revokeObjectURL(url);
       };
 
-      source.start();
+      _audioEl.onerror = () => {
+        btn.textContent = '🔊 Vorlesen';
+        btn.classList.remove('speaking', 'loading');
+        currentAudio = null;
+      };
+
+      await _audioEl.play();
+
     } catch (e) {
       console.error('Speak error:', e);
       btn.textContent = '🔊 Vorlesen';
