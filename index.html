@@ -124,6 +124,23 @@
   .send-btn svg { width: 17px; height: 17px; fill: #0f0f0f; }
   .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 7px; text-align: center; }
 
+  .volume-bar {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 8px; padding: 0 4px;
+  }
+  .volume-bar span { font-size: 14px; }
+  .volume-bar input[type=range] {
+    flex: 1; height: 4px; appearance: none; -webkit-appearance: none;
+    background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  .volume-bar input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+  .volume-bar input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none;
+  }
+
   @keyframes recPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,85,85,0.4); } 50% { box-shadow: 0 0 0 6px rgba(224,85,85,0); } }
   @keyframes speakPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(200,169,110,0.3); } 50% { box-shadow: 0 0 0 5px rgba(200,169,110,0); } }
   @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -214,6 +231,11 @@
         </button>
       </div>
       <div class="input-hint">Enter zum Senden · 🎤 gedrückt halten zum Sprechen</div>
+      <div class="volume-bar">
+        <span>🔈</span>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
+        <span>🔊</span>
+      </div>
     </div>
   </div>
 </div>
@@ -489,6 +511,8 @@
   }
 
   function stopMic() { if (recognition && isRecording) recognition.stop(); }
+
+  function setVolume(val) { audioEl.volume = parseFloat(val); }
 
   // ── 🔊 Sprachausgabe ──
   function stopAudio() {
