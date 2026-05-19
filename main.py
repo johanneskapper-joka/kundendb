@@ -190,6 +190,24 @@ async def get_contacts():
     result = supabase.table("contacts").select("*").order("company_name").execute()
     return result.data
 
+@app.delete("/contacts/{contact_id}")
+async def delete_contact(contact_id: str):
+    try:
+        supabase.table("contacts").delete().eq("id", contact_id).execute()
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.put("/contacts/{contact_id}")
+async def update_contact(contact_id: str, request: Request):
+    try:
+        body = await request.json()
+        body["updated_at"] = datetime.utcnow().isoformat()
+        supabase.table("contacts").update(body).eq("id", contact_id).execute()
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "elevenlabs": bool(ELEVENLABS_API_KEY)}
