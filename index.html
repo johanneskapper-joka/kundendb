@@ -437,17 +437,19 @@
   let recognition = null;
   let isRecording = false;
 
-  function startMic(e) {
+  async function startMic(e) {
     if (e) e.preventDefault();
     if (isRecording) return;
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) { alert('Bitte Chrome oder Edge verwenden.'); return; }
 
-    // iOS Audio-Unlock: Audio-Element direkt beim Touch starten
-    audioEl.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA';
-    audioEl.play().catch(() => {});
-
-    // Laufende Ausgabe stoppen
-    stopAudio();
+    // Laufende Ausgabe stoppen und kurz warten damit iOS Mikrofon freigibt
+    if (currentAudio) {
+      audioEl.pause();
+      audioEl.src = '';
+      currentAudio = null;
+      if (activeSpeakBtn) { activeSpeakBtn.textContent = '🔊 Vorlesen'; activeSpeakBtn.classList.remove('speaking', 'loading'); activeSpeakBtn = null; }
+      await new Promise(r => setTimeout(r, 300));
+    }
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
