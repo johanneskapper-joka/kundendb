@@ -232,6 +232,24 @@
   let conversationHistory = [];
   let currentAudio = null;
   let activeSpeakBtn = null;
+  let audioUnlocked = false;
+
+  // Render aufwecken beim Laden
+  fetch(`${BACKEND_URL}/health`).catch(() => {});
+
+  // iOS Audio beim ersten Touch/Klick entsperren
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioEl.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA';
+    audioEl.play().then(() => {
+      audioEl.pause();
+      audioEl.src = '';
+      audioUnlocked = true;
+    }).catch(() => {});
+  }
+
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+  document.addEventListener('mousedown', unlockAudio, { once: true });
 
   // ── Sidebar ──
   function toggleSidebar() {
