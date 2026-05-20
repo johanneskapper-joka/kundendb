@@ -479,81 +479,100 @@
   let recognition = null;
   let isRecording = false;
 
+  let micHeld = false;
+  let accumulatedTranscript = '';
+
   async function startMic(e) {
     if (e) e.preventDefault();
-    if (isRecording) return;
+    if (micHeld) return;
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) { alert('Bitte Chrome oder Edge verwenden.'); return; }
 
-    // Laufende Ausgabe stoppen und kurz warten damit iOS Mikrofon freigibt
+    // Laufende Ausgabe stoppen
     if (currentAudio) {
       audioEl.pause();
       audioEl.src = '';
       currentAudio = null;
       if (activeSpeakBtn) { activeSpeakBtn.textContent = '🔊 Vorlesen'; activeSpeakBtn.classList.remove('speaking', 'loading'); activeSpeakBtn = null; }
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 300));
     }
 
-    // Altes recognition Objekt komplett zerstören und neu erstellen
+    micHeld = true;
+    accumulatedTranscript = '';
+    document.getElementById('messageInput').value = '';
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('micBtn').textContent = '🔴';
+
+    startRecognitionLoop();
+  }
+
+  function startRecognitionLoop() {
+    if (!micHeld) return;
+
+    // Altes Objekt sauber entfernen
     if (recognition) {
       try { recognition.abort(); } catch(e) {}
       recognition = null;
-      await new Promise(r => setTimeout(r, 200));
     }
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
     recognition.lang = currentLang === 'de' ? 'de-DE' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
-    const btn = document.getElementById('micBtn');
-
-    recognition.onstart = () => {
-      isRecording = true;
-      btn.classList.add('recording');
-      btn.textContent = '🔴';
-    };
-
     recognition.onresult = (e) => {
-      let t = '';
-      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
-      document.getElementById('messageInput').value = t;
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          accumulatedTranscript += e.results[i][0].transcript + ' ';
+        } else {
+          interim = e.results[i][0].transcript;
+        }
+      }
+      document.getElementById('messageInput').value = (accumulatedTranscript + interim).trim();
       autoResize(document.getElementById('messageInput'));
       voiceMode = true;
     };
 
     recognition.onend = () => {
-      isRecording = false;
-      recognition = null;
-      btn.classList.remove('recording');
-      btn.textContent = '🎤';
-      if (document.getElementById('messageInput').value.trim()) sendMessage();
+      // Wenn Button noch gedrückt – neu starten
+      if (micHeld) {
+        setTimeout(() => startRecognitionLoop(), 100);
+      }
     };
 
     recognition.onerror = (e) => {
       console.log('Mic error:', e.error);
-      if (e.error === 'aborted') return;
-      isRecording = false;
-      recognition = null;
-      btn.classList.remove('recording');
-      btn.textContent = '🎤';
+      if (e.error === 'aborted' || e.error === 'no-speech') {
+        if (micHeld) setTimeout(() => startRecognitionLoop(), 100);
+        return;
+      }
+      // Bei anderen Fehlern kurz warten und neu versuchen
+      if (micHeld) setTimeout(() => startRecognitionLoop(), 500);
     };
 
-    try {
-      recognition.start();
-    } catch(err) {
+    try { recognition.start(); } catch(err) {
       console.error('Start error:', err);
-      recognition = null;
-      isRecording = false;
-      btn.textContent = '🎤';
+      if (micHeld) setTimeout(() => startRecognitionLoop(), 500);
     }
   }
 
   function stopMic() {
-    if (recognition && isRecording) {
+    if (!micHeld) return;
+    micHeld = false;
+    isRecording = false;
+
+    const btn = document.getElementById('micBtn');
+    btn.classList.remove('recording');
+    btn.textContent = '🎤';
+
+    if (recognition) {
       try { recognition.stop(); } catch(e) {}
+      recognition = null;
     }
+
+    if (document.getElementById('messageInput').value.trim()) sendMessage();
   }
 
   function setVolume(val) { audioEl.volume = parseFloat(val); }
