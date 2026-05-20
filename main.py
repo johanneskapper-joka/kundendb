@@ -45,6 +45,86 @@ class ChatRequest(BaseModel):
     language: str = "de"
     history: List[Message] = []
 
+def fuzzy_match_companies(text: str, contacts: list) -> str:
+    """Ersetzt ähnlich klingende Firmennamen im Text durch die korrekten DB-Einträge."""
+    if not contacts or not text:
+        return text
+
+    company_names = [c.get('company_name', '') for c in contacts if c.get('company_name')]
+    if not company_names:
+        return text
+
+    words = text.split()
+    result_words = []
+    i = 0
+
+    while i < len(words):
+        # Versuche 1-4 Wörter als Firmenname zu matchen
+        matched = False
+        for length in range(min(4, len(words) - i), 0, -1):
+            phrase = ' '.join(words[i:i+length])
+            if len(phrase) < 3:
+                continue
+
+            best_match = None
+            best_score = 0
+
+            for company in company_names:
+                score = similarity_score(phrase.lower(), company.lower())
+                if score > best_score:
+                    best_score = score
+                    best_match = company
+
+            # Nur ersetzen wenn sehr ähnlich (>75%)
+            if best_score > 0.75 and best_match:
+                result_words.append(best_match)
+                i += length
+                matched = True
+                break
+
+        if not matched:
+            result_words.append(words[i])
+            i += 1
+
+    return ' '.join(result_words)
+
+
+def similarity_score(a: str, b: str) -> float:
+    """Berechnet Ähnlichkeit zwischen zwei Strings (0-1)."""
+    if a == b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+
+    # Enthält-Check
+    if a in b or b in a:
+        return 0.85
+
+    # Gemeinsame Zeichen
+    longer = a if len(a) >= len(b) else b
+    shorter = a if len(a) < len(b) else b
+
+    matches = 0
+    used = [False] * len(longer)
+    for char in shorter:
+        for j, lchar in enumerate(longer):
+            if not used[j] and char == lchar:
+                matches += 1
+                used[j] = True
+                break
+
+    if matches == 0:
+        return 0.0
+
+    score = (matches / len(shorter) + matches / len(longer)) / 2
+
+    # Bonus für gleichen Anfangsbuchstaben
+    if a[0] == b[0]:
+        score = min(1.0, score + 0.1)
+
+    return score
+
+
 SYSTEM_PROMPT = """Du bist ein intelligenter CRM-Assistent für ein kleines Team.
 Du führst echte Gespräche – du erinnerst dich an alles was in dieser Unterhaltung gesagt wurde, hakst nach, machst Vorschläge und denkst mit.
 
@@ -85,6 +165,9 @@ async def chat(req: ChatRequest):
         for c in contacts
     ]) if contacts else "Noch keine Kontakte."
 
+    # Firmennamen in der Nachricht gegen DB abgleichen
+    corrected_message = fuzzy_match_companies(req.message, contacts)
+
     messages = []
     db_prefix = f"Kundendatenbank:\n{contacts_text}\n\n---\nNachricht ({req.language}): "
 
@@ -92,9 +175,9 @@ async def chat(req: ChatRequest):
         messages.append({"role": req.history[0].role, "content": db_prefix + req.history[0].content})
         for msg in req.history[1:]:
             messages.append({"role": msg.role, "content": msg.content})
-        messages.append({"role": "user", "content": req.message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
+        messages.append({"role": "user", "content": corrected_message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
     else:
-        messages.append({"role": "user", "content": db_prefix + req.message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
+        messages.append({"role": "user", "content": db_prefix + corrected_message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
 
     response = claude.messages.create(
         model="claude-haiku-4-5-20251001",
