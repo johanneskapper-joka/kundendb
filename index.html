@@ -125,12 +125,11 @@
   .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 7px; text-align: center; }
 
   .volume-bar {
-    display: flex; align-items: center; gap: 8px;
-    margin-top: 8px; padding: 0 4px;
+    display: flex; align-items: center; gap: 6px;
   }
-  .volume-bar span { font-size: 14px; }
+  .volume-bar span { font-size: 13px; }
   .volume-bar input[type=range] {
-    flex: 1; height: 4px; appearance: none; -webkit-appearance: none;
+    width: 80px; height: 4px; appearance: none; -webkit-appearance: none;
     background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
   }
   .volume-bar input[type=range]::-webkit-slider-thumb {
@@ -140,6 +139,7 @@
   .volume-bar input[type=range]::-moz-range-thumb {
     width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none;
   }
+  @media (max-width: 400px) { .volume-bar input[type=range] { width: 60px; } }
 
   @keyframes recPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,85,85,0.4); } 50% { box-shadow: 0 0 0 6px rgba(224,85,85,0); } }
   @keyframes speakPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(200,169,110,0.3); } 50% { box-shadow: 0 0 0 5px rgba(200,169,110,0); } }
@@ -189,6 +189,11 @@
   <div class="header-right">
     <button class="icon-btn" id="sidebarToggle" onclick="toggleSidebar()">👥 Kontakte</button>
     <button class="icon-btn" onclick="clearHistory()">🔄 Neu</button>
+    <div class="volume-bar">
+        <span>🔈</span>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
+        <span>🔊</span>
+      </div>
     <div class="lang-selector">
       <button class="lang-btn active" onclick="setLang('de', this)">🇩🇪 DE</button>
       <button class="lang-btn" onclick="setLang('fr', this)">🇫🇷 FR</button>
@@ -231,11 +236,7 @@
         </button>
       </div>
       <div class="input-hint">Enter zum Senden · 🎤 gedrückt halten zum Sprechen</div>
-      <div class="volume-bar">
-        <span>🔈</span>
-        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
-        <span>🔊</span>
-      </div>
+
     </div>
   </div>
 </div>
