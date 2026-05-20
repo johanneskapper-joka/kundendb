@@ -137,6 +137,41 @@ async def chat(req: ChatRequest):
     return {"reply": clean_response}
 
 
+MONTHS_DE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"]
+MONTHS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"]
+MONTHS_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+
+def format_for_speech(text: str, lang: str) -> str:
+    months = MONTHS_DE if lang == "de" else MONTHS_FR if lang == "fr" else MONTHS_EN
+
+    # Datum DD.MM.YYYY → z.B. "10. Mai 2026"
+    def replace_date(m):
+        d, mo, y = int(m.group(1)), int(m.group(2)), m.group(3)
+        month = months[mo-1] if 1 <= mo <= 12 else m.group(2)
+        return f"{d}. {month} {y}"
+    text = re.sub(r'\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b', replace_date, text)
+
+    # Datum YYYY-MM-DD → z.B. "10. Mai 2026"
+    def replace_iso(m):
+        y, mo, d = m.group(1), int(m.group(2)), int(m.group(3))
+        month = months[mo-1] if 1 <= mo <= 12 else m.group(2)
+        return f"{d}. {month} {y}"
+    text = re.sub(r'\b(\d{4})-(\d{2})-(\d{2})\b', replace_iso, text)
+
+    # Telefonnummern: +49 621 123456 → Ziffern mit Leerzeichen
+    def replace_phone(m):
+        digits = m.group(0).replace('+', '00').replace(' ', '').replace('-', '')
+        return ' '.join(digits)
+    text = re.sub(r'[+]?[\d][\d\s\-]{6,}', replace_phone, text)
+
+    # Währung: 8.000€ oder 8000€ → "achttausend Euro" (nur Zahl + Einheit, Claude übersetzt)
+    text = re.sub(r'(\d+\.\d{3})€', lambda m: m.group(0).replace('.', '') + ' Euro', text)
+    text = re.sub(r'(\d+)€', r'\1 Euro', text)
+    text = re.sub(r'(\d+)\$', r'\1 Dollar', text)
+
+    return text
+
+
 @app.post("/speak")
 async def speak(request: Request):
     try:
@@ -151,7 +186,8 @@ async def speak(request: Request):
 
         voice_id = VOICE_IDS.get(lang, VOICE_IDS["de"])
         clean = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-        clean = re.sub(r'[*#<>]', '', clean).strip()[:2000]
+        clean = re.sub(r'[*#<>]', '', clean).strip()
+        clean = format_for_speech(clean, lang)[:2000]
 
         async with httpx.AsyncClient(timeout=30) as client:
             el_response = await client.post(
