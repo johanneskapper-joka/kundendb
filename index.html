@@ -490,7 +490,14 @@
       audioEl.src = '';
       currentAudio = null;
       if (activeSpeakBtn) { activeSpeakBtn.textContent = '🔊 Vorlesen'; activeSpeakBtn.classList.remove('speaking', 'loading'); activeSpeakBtn = null; }
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 400));
+    }
+
+    // Altes recognition Objekt komplett zerstören und neu erstellen
+    if (recognition) {
+      try { recognition.abort(); } catch(e) {}
+      recognition = null;
+      await new Promise(r => setTimeout(r, 200));
     }
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -498,21 +505,56 @@
     recognition.lang = currentLang === 'de' ? 'de-DE' : currentLang === 'fr' ? 'fr-FR' : 'en-US';
     recognition.continuous = true;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
     const btn = document.getElementById('micBtn');
-    recognition.onstart = () => { isRecording = true; btn.classList.add('recording'); btn.textContent = '🔴'; };
+
+    recognition.onstart = () => {
+      isRecording = true;
+      btn.classList.add('recording');
+      btn.textContent = '🔴';
+    };
+
     recognition.onresult = (e) => {
-      let t = ''; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      let t = '';
+      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
       document.getElementById('messageInput').value = t;
       autoResize(document.getElementById('messageInput'));
       voiceMode = true;
     };
-    recognition.onend = () => { isRecording = false; btn.classList.remove('recording'); btn.textContent = '🎤'; if (document.getElementById('messageInput').value.trim()) sendMessage(); };
-    recognition.onerror = (e) => { if (e.error === 'aborted') return; isRecording = false; btn.classList.remove('recording'); btn.textContent = '🎤'; };
-    recognition.start();
+
+    recognition.onend = () => {
+      isRecording = false;
+      recognition = null;
+      btn.classList.remove('recording');
+      btn.textContent = '🎤';
+      if (document.getElementById('messageInput').value.trim()) sendMessage();
+    };
+
+    recognition.onerror = (e) => {
+      console.log('Mic error:', e.error);
+      if (e.error === 'aborted') return;
+      isRecording = false;
+      recognition = null;
+      btn.classList.remove('recording');
+      btn.textContent = '🎤';
+    };
+
+    try {
+      recognition.start();
+    } catch(err) {
+      console.error('Start error:', err);
+      recognition = null;
+      isRecording = false;
+      btn.textContent = '🎤';
+    }
   }
 
-  function stopMic() { if (recognition && isRecording) recognition.stop(); }
+  function stopMic() {
+    if (recognition && isRecording) {
+      try { recognition.stop(); } catch(e) {}
+    }
+  }
 
   function setVolume(val) { audioEl.volume = parseFloat(val); }
 
