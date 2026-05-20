@@ -191,7 +191,7 @@
     <button class="icon-btn" onclick="clearHistory()">🔄 Neu</button>
     <div class="volume-bar">
         <span>🔈</span>
-        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)">
         <span>🔊</span>
       </div>
     <div class="lang-selector">
@@ -256,6 +256,7 @@
   let currentAudio = null;
   let activeSpeakBtn = null;
   let audioUnlocked = false;
+  audioEl.volume = 0.5;
 
   // Render aufwecken beim Laden
   fetch(`${BACKEND_URL}/health`).catch(() => {});
