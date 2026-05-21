@@ -155,12 +155,12 @@ Wenn der Nutzer neue Infos nennt, antworte IMMER mit einem JSON-Block:
 Antworte dann normal in der Sprache des Nutzers.
 
 WICHTIG für Antworten:
-- Maximal 3-4 Sätze – nie länger
-- Keine Aufzählungen mit vielen Punkten – lieber 1-2 wichtigste Fakten
+- Maximal 2-3 Sätze – nie länger
 - Direkt zum Punkt, kein Vorgeplänkel
-- Nur das Wesentlichste erwähnen
-- Bei Datenabruf: Firma, Status, letzter Kontakt, 1 wichtige Notiz – fertig
-- Proaktiv nur EINE konkrete Frage oder Empfehlung am Ende"""
+- Nur was WIRKLICH in den Daten steht – niemals spekulieren oder Verbindungen erfinden
+- Wenn etwas nicht in den Daten steht: klar sagen "Dazu habe ich keine Information"
+- Bei Datenabruf: Status + letzter Kontakt + 1 wichtige Notiz – fertig
+- Am Ende maximal EINE kurze Frage"""
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
