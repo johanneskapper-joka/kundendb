@@ -157,10 +157,11 @@ Antworte dann normal in der Sprache des Nutzers.
 WICHTIG für Antworten:
 - Maximal 2-3 Sätze – nie länger
 - Direkt zum Punkt, kein Vorgeplänkel
+- Beantworte NUR was gefragt wurde – niemals andere Firmen oder Themen einbringen
 - Nur was WIRKLICH in den Daten steht – niemals spekulieren oder Verbindungen erfinden
-- Wenn etwas nicht in den Daten steht: klar sagen "Dazu habe ich keine Information"
-- Bei Datenabruf: Status + letzter Kontakt + 1 wichtige Notiz – fertig
-- Am Ende maximal EINE kurze Frage"""
+- Wenn etwas nicht in den Daten steht: "Dazu habe ich keine Information"
+- Niemals Aktionen vorschlagen die nicht explizit angefragt wurden (kein Löschen, kein Statuswechsel)
+- Bei Datenabruf: Status + letzter Kontakt + 1 wichtige Notiz – fertig"""
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
@@ -176,9 +177,6 @@ async def chat(req: ChatRequest):
         for c in contacts
     ]) if contacts else "Noch keine Kontakte."
 
-    # Firmennamen in der Nachricht gegen DB abgleichen
-    corrected_message = fuzzy_match_companies(req.message, contacts)
-
     messages = []
     db_prefix = f"Kundendatenbank:\n{contacts_text}\n\n---\nNachricht ({req.language}): "
 
@@ -186,9 +184,9 @@ async def chat(req: ChatRequest):
         messages.append({"role": req.history[0].role, "content": db_prefix + req.history[0].content})
         for msg in req.history[1:]:
             messages.append({"role": msg.role, "content": msg.content})
-        messages.append({"role": "user", "content": corrected_message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
+        messages.append({"role": "user", "content": req.message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
     else:
-        messages.append({"role": "user", "content": db_prefix + corrected_message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
+        messages.append({"role": "user", "content": db_prefix + req.message + f"\n\nWICHTIG: Antworte IMMER auf {req.language.upper()} – egal in welcher Sprache die Frage gestellt wurde."})
 
     response = claude.messages.create(
         model="claude-haiku-4-5-20251001",
