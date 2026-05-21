@@ -256,10 +256,55 @@ def format_for_speech(text: str, lang: str) -> str:
         return ' '.join(digits)
     text = re.sub(r'[+]?[\d][\d\s\-]{6,}', replace_phone, text)
 
-    # Währung: 8.000€ oder 8000€ → "achttausend Euro" (nur Zahl + Einheit, Claude übersetzt)
+    # Währung: 8.000€ oder 8000€ → "achttausend Euro"
     text = re.sub(r'(\d+\.\d{3})€', lambda m: m.group(0).replace('.', '') + ' Euro', text)
     text = re.sub(r'(\d+)€', r'\1 Euro', text)
     text = re.sub(r'(\d+)\$', r'\1 Dollar', text)
+
+    # Jahreszahlen ausschreiben (2020-2029)
+    def year_to_words_de(m):
+        y = int(m.group(0))
+        if 2000 <= y <= 2099:
+            rest = y - 2000
+            if rest == 0:
+                return "zweitausend"
+            elif rest < 10:
+                return f"zweitausendund{['null','ein','zwei','drei','vier','fünf','sechs','sieben','acht','neun'][rest]}"
+            elif rest < 20:
+                teens = ['zehn','elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn','neunzehn']
+                return f"zweitausendund{teens[rest-10]}"
+            else:
+                tens = ['','','zwanzig','dreißig','vierzig','fünfzig','sechzig','siebzig','achtzig','neunzig']
+                ones = ['','ein','zwei','drei','vier','fünf','sechs','sieben','acht','neun']
+                t, o = rest // 10, rest % 10
+                if o == 0:
+                    return f"zweitausendund{tens[t]}"
+                return f"zweitausendund{ones[o]}und{tens[t]}"
+        return m.group(0)
+
+    def year_to_words_fr(m):
+        y = int(m.group(0))
+        if 2000 <= y <= 2099:
+            rest = y - 2000
+            if rest == 0: return "deux mille"
+            elif rest < 20:
+                nums = ['','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf']
+                return f"deux mille {nums[rest]}"
+            else:
+                return f"deux mille {rest}"
+        return m.group(0)
+
+    def year_to_words_en(m):
+        y = int(m.group(0))
+        if 2000 <= y <= 2099:
+            rest = y - 2000
+            if rest == 0: return "two thousand"
+            elif rest < 10: return f"two thousand and {rest}"
+            else: return f"twenty {rest}"
+        return m.group(0)
+
+    year_func = year_to_words_de if lang == "de" else year_to_words_fr if lang == "fr" else year_to_words_en
+    text = re.sub(r'\b(20\d{2})\b', year_func, text)
 
     return text
 
