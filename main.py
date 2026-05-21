@@ -9,6 +9,7 @@ import json
 import httpx
 from datetime import datetime
 from typing import List
+import openai
 
 app = FastAPI()
 
@@ -29,6 +30,8 @@ async def add_cors_headers(request: Request, call_next):
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 claude = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+openai_client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 VOICE_IDS = {
     "de": "1J0wWp4zPQIvsK7Xwh34",
@@ -253,6 +256,50 @@ def format_for_speech(text: str, lang: str) -> str:
     text = re.sub(r'(\d+)\$', r'\1 Dollar', text)
 
     return text
+
+
+@app.post("/transcribe")
+async def transcribe(request: Request):
+    try:
+        form = await request.form()
+        audio_file = form.get("audio")
+        lang = form.get("language", "de")
+        companies = form.get("companies", "")
+
+        if not audio_file:
+            return JSONResponse({"error": "No audio"}, status_code=400)
+
+        if not openai_client:
+            return JSONResponse({"error": "No OpenAI key"}, status_code=400)
+
+        audio_bytes = await audio_file.read()
+        filename = audio_file.filename or "audio.webm"
+
+        # Firmenname-Hints für bessere Erkennung
+        prompt = ""
+        if companies:
+            prompt = f"Firmen und Namen: {companies}. "
+        prompt += "Dies ist eine Geschäftsnachricht über Kundenkontakte."
+
+        import io
+        audio_io = io.BytesIO(audio_bytes)
+        audio_io.name = filename
+
+        lang_code = "de" if lang == "de" else "fr" if lang == "fr" else "en"
+
+        transcript = await openai_client.audio.transcriptions.create(
+            model="whisper-1",
+            file=(filename, audio_bytes, "audio/webm"),
+            language=lang_code,
+            prompt=prompt
+        )
+
+        text = transcript.text.strip()
+        return {"transcript": text}
+
+    except Exception as e:
+        print(f"Transcribe error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.post("/speak")
