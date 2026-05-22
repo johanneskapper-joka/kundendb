@@ -34,6 +34,37 @@
 
   .sidebar { width: 280px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.3s ease, opacity 0.3s ease; overflow: hidden; }
   .sidebar.hidden { width: 0; opacity: 0; pointer-events: none; }
+  .sidebar-actions {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-action-btn {
+    flex: 1;
+    padding: 7px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .sidebar-action-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
   .sidebar-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
   .sidebar-search { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .sidebar-search input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
@@ -205,6 +236,13 @@
 <div class="main">
   <div class="sidebar hidden" id="sidebar">
     <div class="sidebar-header">Alle Kontakte</div>
+    <div class="sidebar-actions">
+      <button class="sidebar-action-btn" onclick="exportCSV()" title="Als CSV herunterladen">⬇️ Export</button>
+      <label class="sidebar-action-btn" title="CSV hochladen">
+        ⬆️ Import
+        <input type="file" id="csvImport" accept=".csv" style="display:none" onchange="importCSV(this)">
+      </label>
+    </div>
     <div class="sidebar-search">
       <input type="text" id="searchInput" placeholder="Suchen..." oninput="filterContacts()">
     </div>
@@ -423,6 +461,77 @@
     const phrases = { de: `Was weißt du über ${company}?`, fr: `Que sais-tu sur ${company}?`, en: `What do you know about ${company}?` };
     document.getElementById('messageInput').value = phrases[currentLang];
     sendMessage();
+  }
+
+  // ── CSV Export ──
+  function exportCSV() {
+    if (!allContacts.length) { alert('Keine Kontakte zum Exportieren.'); return; }
+
+    const fields = ['company_name','contact_name','email','phone','language','status','last_contact','notes'];
+    const headers = fields.join(';');
+
+    const rows = allContacts.map(c =>
+      fields.map(f => {
+        const val = (c[f] || '').toString().replace(/"/g, '""').replace(/
+/g, ' ');
+        return `"${val}"`;
+      }).join(';')
+    );
+
+    const csv = [headers, ...rows].join('
+');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kundendb_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── CSV Import ──
+  async function importCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const lines = text.split('
+').filter(l => l.trim());
+    if (lines.length < 2) { alert('Keine Daten gefunden.'); return; }
+
+    // Header erkennen
+    const sep = lines[0].includes(';') ? ';' : ',';
+    const headers = lines[0].split(sep).map(h => h.replace(/"/g, '').trim().toLowerCase());
+
+    const records = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(sep).map(v => v.replace(/^"|"$/g, '').trim());
+      const obj = {};
+      headers.forEach((h, idx) => { if (vals[idx] !== undefined) obj[h] = vals[idx]; });
+      if (obj.company_name) records.push(obj);
+    }
+
+    if (!records.length) { alert('Keine gültigen Einträge gefunden.'); return; }
+
+    const confirm_import = confirm(`${records.length} Kontakte importieren?`);
+    if (!confirm_import) return;
+
+    let success = 0, failed = 0;
+    for (const rec of records) {
+      try {
+        const res = await fetch(`${BACKEND_URL}/contacts/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(rec)
+        });
+        if (res.ok) success++;
+        else failed++;
+      } catch(e) { failed++; }
+    }
+
+    alert(`Import abgeschlossen: ${success} erfolgreich, ${failed} fehlgeschlagen.`);
+    input.value = '';
+    loadContacts();
   }
 
   // ── Delete ──
