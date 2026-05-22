@@ -425,6 +425,42 @@ async def update_contact(contact_id: str, request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@app.post("/contacts/import")
+async def import_contact(request: Request):
+    try:
+        body = await request.json()
+        company_name = body.get("company_name", "").strip()
+        if not company_name:
+            return JSONResponse({"error": "company_name required"}, status_code=400)
+
+        # Prüfen ob Firma bereits existiert
+        existing = supabase.table("contacts").select("*").eq("company_name", company_name).execute()
+
+        payload = {
+            "company_name": company_name,
+            "contact_name": body.get("contact_name", ""),
+            "email": body.get("email", ""),
+            "phone": body.get("phone", ""),
+            "language": body.get("language", "de"),
+            "status": body.get("status", "interessiert"),
+            "notes": body.get("notes", ""),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+
+        if body.get("last_contact"):
+            payload["last_contact"] = body.get("last_contact")
+
+        if existing.data:
+            supabase.table("contacts").update(payload).eq("company_name", company_name).execute()
+        else:
+            supabase.table("contacts").insert(payload).execute()
+
+        return {"success": True}
+    except Exception as e:
+        print(f"Import error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "elevenlabs": bool(ELEVENLABS_API_KEY)}
