@@ -466,25 +466,20 @@
   // ── CSV Export ──
   function exportCSV() {
     if (!allContacts.length) { alert('Keine Kontakte zum Exportieren.'); return; }
-
     const fields = ['company_name','contact_name','email','phone','language','status','last_contact','notes'];
     const headers = fields.join(';');
-
     const rows = allContacts.map(c =>
       fields.map(f => {
-        const val = (c[f] || '').toString().replace(/"/g, '""').replace(/
-/g, ' ');
-        return `"${val}"`;
+        const val = String(c[f] || '').replace(/"/g, '""').replace(/\r?\n/g, ' ');
+        return '"' + val + '"';
       }).join(';')
     );
-
-    const csv = [headers, ...rows].join('
-');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const csv = [headers].concat(rows).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `kundendb_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = 'kundendb_' + new Date().toISOString().slice(0,10) + '.csv';
     a.click();
     URL.revokeObjectURL(url);
   }
