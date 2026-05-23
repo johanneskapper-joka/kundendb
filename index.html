@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2.1 -->
+<!-- v3.0 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -30,43 +30,20 @@
   .icon-btn { padding: 7px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
   .icon-btn:hover { color: var(--text); border-color: var(--accent); }
   .icon-btn.active { border-color: var(--accent); color: var(--accent); }
+  .volume-bar { display: flex; align-items: center; gap: 6px; }
+  .volume-bar span { font-size: 13px; }
+  .volume-bar input[type=range] { width: 80px; height: 4px; appearance: none; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
+  .volume-bar input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .volume-bar input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none; }
+  @media (max-width: 400px) { .volume-bar input[type=range] { width: 60px; } }
 
   .main { display: flex; flex: 1; overflow: hidden; position: relative; }
-
   .sidebar { width: 280px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.3s ease, opacity 0.3s ease; overflow: hidden; }
   .sidebar.hidden { width: 0; opacity: 0; pointer-events: none; }
-  .sidebar-actions {
-    display: flex;
-    gap: 6px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .sidebar-action-btn {
-    flex: 1;
-    padding: 7px 10px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    text-align: center;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-  }
-
-  .sidebar-action-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
   .sidebar-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+  .sidebar-actions { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .sidebar-action-btn { flex: 1; padding: 7px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .sidebar-action-btn:hover { border-color: var(--accent); color: var(--accent); }
   .sidebar-search { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .sidebar-search input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
   .sidebar-search input:focus { border-color: var(--accent); }
@@ -74,7 +51,6 @@
   .contacts-list { flex: 1; overflow-y: auto; padding: 6px; }
   .contacts-list::-webkit-scrollbar { width: 4px; }
   .contacts-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
   .contact-card { padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; margin-bottom: 3px; transition: background 0.2s; }
   .contact-card:hover { background: var(--surface2); border-color: var(--border); }
   .contact-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
@@ -90,7 +66,6 @@
   .contact-status.aktiv { background: #1a2e1a; color: var(--success); }
   .contact-status.interessiert { background: #1a1a2e; color: #7eb8e8; }
 
-  /* Edit Modal */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .modal-overlay.visible { opacity: 1; pointer-events: all; }
   .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 24px; width: 100%; max-width: 420px; }
@@ -102,16 +77,13 @@
   .modal-field textarea { resize: vertical; min-height: 80px; }
   .modal-field select option { background: var(--surface2); }
   .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-  .btn-primary { flex: 1; padding: 10px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 10px; color: #0f0f0f; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
-  .btn-primary:hover { opacity: 0.9; }
-  .btn-secondary { flex: 1; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.2s; }
-  .btn-secondary:hover { color: var(--text); border-color: var(--accent); }
+  .btn-primary { flex: 1; padding: 10px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 10px; color: #0f0f0f; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-secondary { flex: 1; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
 
   .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .messages { flex: 1; overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 16px; }
   .messages::-webkit-scrollbar { width: 4px; }
   .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
   .welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; gap: 14px; }
   .welcome-icon { width: 60px; height: 60px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 6px; }
   .welcome h2 { font-family: 'DM Serif Display', serif; font-size: 24px; }
@@ -119,7 +91,6 @@
   .suggestions { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 6px; }
   .suggestion { padding: 7px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
   .suggestion:hover { border-color: var(--accent); color: var(--accent); }
-
   .message { display: flex; gap: 10px; opacity: 0; animation: slideIn 0.3s ease forwards; }
   .message.user { flex-direction: row-reverse; align-self: flex-end; max-width: 85%; }
   .message.assistant { align-self: flex-start; max-width: 85%; }
@@ -135,7 +106,6 @@
   .speak-btn:hover { border-color: var(--accent); color: var(--accent); }
   .speak-btn.speaking { background: #1a1a2e; border-color: var(--accent); color: var(--accent); animation: speakPulse 1.5s infinite; }
   .speak-btn.loading { opacity: 0.6; cursor: wait; }
-
   .typing { display: flex; align-items: center; gap: 5px; padding: 12px 16px; background: var(--ai-bubble); border: 1px solid #1e1e3a; border-radius: var(--radius); border-top-left-radius: 4px; width: fit-content; }
   .typing span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: bounce 1.2s infinite; opacity: 0.5; }
   .typing span:nth-child(2) { animation-delay: 0.2s; }
@@ -156,49 +126,24 @@
   .send-btn svg { width: 17px; height: 17px; fill: #0f0f0f; }
   .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 7px; text-align: center; }
 
-  .volume-bar {
-    display: flex; align-items: center; gap: 6px;
-  }
-  .volume-bar span { font-size: 13px; }
-  .volume-bar input[type=range] {
-    width: 80px; height: 4px; appearance: none; -webkit-appearance: none;
-    background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
-  }
-  .volume-bar input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 16px; height: 16px;
-    border-radius: 50%; background: var(--accent); cursor: pointer;
-  }
-  .volume-bar input[type=range]::-moz-range-thumb {
-    width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none;
-  }
-  @media (max-width: 400px) { .volume-bar input[type=range] { width: 60px; } }
-
   @keyframes recPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,85,85,0.4); } 50% { box-shadow: 0 0 0 6px rgba(224,85,85,0); } }
   @keyframes speakPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(200,169,110,0.3); } 50% { box-shadow: 0 0 0 5px rgba(200,169,110,0); } }
   @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-6px); opacity: 1; } }
-
-  @media (max-width: 600px) {
-    .sidebar { position: absolute; z-index: 20; height: 100%; box-shadow: 4px 0 20px rgba(0,0,0,0.5); }
-    .messages { padding: 14px 12px; }
-    .input-area { padding: 10px 12px 14px; }
-    .contact-actions { opacity: 1; }
-  }
+  @media (max-width: 600px) { .sidebar { position: absolute; z-index: 20; height: 100%; box-shadow: 4px 0 20px rgba(0,0,0,0.5); } .messages { padding: 14px 12px; } .input-area { padding: 10px 12px 14px; } .contact-actions { opacity: 1; } }
 </style>
 </head>
 <body>
 
-<!-- Edit Modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal">
-    <h3>✏️ Kontakt bearbeiten</h3>
+    <h3>Kontakt bearbeiten</h3>
     <input type="hidden" id="editId">
     <div class="modal-field"><label>Firma</label><input type="text" id="editCompany"></div>
     <div class="modal-field"><label>Ansprechpartner</label><input type="text" id="editContact"></div>
     <div class="modal-field"><label>E-Mail</label><input type="text" id="editEmail"></div>
     <div class="modal-field"><label>Telefon</label><input type="text" id="editPhone"></div>
-    <div class="modal-field">
-      <label>Status</label>
+    <div class="modal-field"><label>Status</label>
       <select id="editStatus">
         <option value="interessiert">Interessiert</option>
         <option value="aktiv">Aktiv</option>
@@ -219,17 +164,17 @@
     <div class="logo-text">Kunden<span>DB</span></div>
   </div>
   <div class="header-right">
-    <button class="icon-btn" id="sidebarToggle" onclick="toggleSidebar()">👥 Kontakte</button>
-    <button class="icon-btn" onclick="clearHistory()">🔄 Neu</button>
+    <button class="icon-btn" id="sidebarToggle" onclick="toggleSidebar()">Kontakte</button>
+    <button class="icon-btn" onclick="clearHistory()">Neu</button>
     <div class="volume-bar">
-        <span>🔈</span>
-        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)">
-        <span>🔊</span>
-      </div>
+      <span>🔈</span>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)">
+      <span>🔊</span>
+    </div>
     <div class="lang-selector">
-      <button class="lang-btn active" onclick="setLang('de', this)">🇩🇪 DE</button>
-      <button class="lang-btn" onclick="setLang('fr', this)">🇫🇷 FR</button>
-      <button class="lang-btn" onclick="setLang('en', this)">🇬🇧 EN</button>
+      <button class="lang-btn active" onclick="setLang('de', this)">DE</button>
+      <button class="lang-btn" onclick="setLang('fr', this)">FR</button>
+      <button class="lang-btn" onclick="setLang('en', this)">EN</button>
     </div>
   </div>
 </header>
@@ -238,9 +183,9 @@
   <div class="sidebar hidden" id="sidebar">
     <div class="sidebar-header">Alle Kontakte</div>
     <div class="sidebar-actions">
-      <button class="sidebar-action-btn" onclick="exportCSV()" title="Als CSV herunterladen">⬇️ Export</button>
-      <label class="sidebar-action-btn" title="CSV hochladen">
-        ⬆️ Import
+      <button class="sidebar-action-btn" onclick="exportCSV()">Export CSV</button>
+      <label class="sidebar-action-btn">
+        Import CSV
         <input type="file" id="csvImport" accept=".csv" style="display:none" onchange="importCSV(this)">
       </label>
     </div>
@@ -260,7 +205,7 @@
         <p>Sprich oder schreib mit mir – ich erinnere mich an unser ganzes Gespräch und denke mit.</p>
         <div class="suggestions">
           <div class="suggestion" onclick="useSuggestion(this)">Was weißt du über Müller GmbH?</div>
-          <div class="suggestion" onclick="useSuggestion(this)">Welche Kunden sind seit 2 Monaten inaktiv?</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Welche Kunden sind inaktiv?</div>
           <div class="suggestion" onclick="useSuggestion(this)">Trag ein: Schmidt AG hat heute angerufen</div>
           <div class="suggestion" onclick="useSuggestion(this)">Qui sont mes clients intéressés?</div>
         </div>
@@ -275,470 +220,329 @@
         </button>
       </div>
       <div class="input-hint">Enter zum Senden · 🎤 gedrückt halten zum Sprechen</div>
-
     </div>
   </div>
 </div>
 
-<!-- Verstecktes Audio-Element für iOS -->
 <audio id="audioPlayer" playsinline webkit-playsinline></audio>
 
 <script>
-  const BACKEND_URL = "https://kundendb.onrender.com";
-  const audioEl = document.getElementById('audioPlayer');
+var BACKEND_URL = "https://kundendb.onrender.com";
+var audioEl = document.getElementById('audioPlayer');
+var currentLang = "de";
+var allContacts = [];
+var sidebarVisible = false;
+var voiceMode = false;
+var conversationHistory = [];
+var currentAudio = null;
+var activeSpeakBtn = null;
+var audioUnlocked = false;
+var micHeld = false;
+var mediaRecorder = null;
+var audioChunks = [];
 
-  let currentLang = "de";
-  let allContacts = [];
-  let sidebarVisible = false;
-  let voiceMode = false;
-  let conversationHistory = [];
-  let currentAudio = null;
-  let activeSpeakBtn = null;
-  let audioUnlocked = false;
-  audioEl.volume = 0.5;
+audioEl.volume = 0.5;
+fetch(BACKEND_URL + "/health").catch(function(){});
 
-  // Render aufwecken beim Laden
-  fetch(`${BACKEND_URL}/health`).catch(() => {});
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioEl.src = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA";
+  audioEl.play().then(function() { audioEl.pause(); audioEl.src = ""; audioUnlocked = true; }).catch(function(){});
+}
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('mousedown', unlockAudio, { once: true });
 
-  // iOS Audio beim ersten Touch/Klick entsperren
-  function unlockAudio() {
-    if (audioUnlocked) return;
-    audioEl.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA';
-    audioEl.play().then(() => {
-      audioEl.pause();
-      audioEl.src = '';
-      audioUnlocked = true;
-    }).catch(() => {});
+function toggleSidebar() {
+  sidebarVisible = !sidebarVisible;
+  document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
+  document.getElementById('sidebarToggle').classList.toggle('active', sidebarVisible);
+  if (sidebarVisible) loadContacts();
+}
+
+function clearHistory() {
+  conversationHistory = [];
+  document.getElementById('messages').innerHTML = '<div class="welcome" id="welcome"><div class="welcome-icon">🤝</div><h2>Neues Gespräch</h2><p>Womit kann ich dir helfen?</p></div>';
+}
+
+function setLang(lang, btn) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+function setVolume(val) { audioEl.volume = parseFloat(val); }
+
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+
+function useSuggestion(el) { document.getElementById('messageInput').value = el.textContent; sendMessage(); }
+
+function formatTime() { return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
+
+function addMessage(role, text) {
+  var welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+  var messages = document.getElementById('messages');
+  var div = document.createElement('div');
+  div.className = 'message ' + role;
+  if (role === 'assistant') {
+    var formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+    div.innerHTML = '<div class="avatar">✨</div><div><div class="bubble">' + formatted + '</div><div class="bubble-meta"><span class="bubble-time">' + formatTime() + '</span><button class="speak-btn" onclick="speakText(this)">🔊 Vorlesen</button></div></div>';
+    div.querySelector('.speak-btn').dataset.text = text;
+  } else {
+    div.innerHTML = '<div class="avatar">👤</div><div><div class="bubble">' + text.replace(/\n/g, '<br>') + '</div><div class="bubble-meta"><span class="bubble-time">' + formatTime() + '</span></div></div>';
   }
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+  return div;
+}
 
-  document.addEventListener('touchstart', unlockAudio, { once: true });
-  document.addEventListener('mousedown', unlockAudio, { once: true });
+function showTyping() {
+  var div = document.createElement('div');
+  div.className = 'message assistant'; div.id = 'typing';
+  div.innerHTML = '<div class="avatar">✨</div><div class="typing"><span></span><span></span><span></span></div>';
+  document.getElementById('messages').appendChild(div);
+  document.getElementById('messages').scrollTop = 99999;
+}
+function removeTyping() { var t = document.getElementById('typing'); if (t) t.remove(); }
 
-  // ── Sidebar ──
-  function toggleSidebar() {
-    sidebarVisible = !sidebarVisible;
-    document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
-    document.getElementById('sidebarToggle').classList.toggle('active', sidebarVisible);
+function sendMessage() {
+  var input = document.getElementById('messageInput');
+  var text = input.value.trim();
+  if (!text) return;
+  document.getElementById('sendBtn').disabled = true;
+  input.value = ''; input.style.height = 'auto';
+  addMessage('user', text);
+  showTyping();
+  var wasVoice = voiceMode;
+  voiceMode = false;
+
+  fetch(BACKEND_URL + "/chat", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text, language: currentLang, history: conversationHistory })
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    removeTyping();
+    var reply = data.reply || 'Keine Antwort.';
+    conversationHistory.push({ role: 'user', content: text });
+    conversationHistory.push({ role: 'assistant', content: reply });
+    if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
+    var msgDiv = addMessage('assistant', reply);
+    if (wasVoice) {
+      var btn = msgDiv.querySelector('.speak-btn');
+      if (btn) speakText(btn);
+    }
     if (sidebarVisible) loadContacts();
-  }
-
-  function clearHistory() {
-    conversationHistory = [];
-    document.getElementById('messages').innerHTML = `
-      <div class="welcome" id="welcome">
-        <div class="welcome-icon">🤝</div>
-        <h2>Neues Gespräch</h2>
-        <p>Das Gespräch wurde zurückgesetzt. Womit kann ich dir helfen?</p>
-      </div>`;
-  }
-
-  function setLang(lang, btn) {
-    currentLang = lang;
-    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const p = { de: 'Schreib oder sprich mit mir...', fr: "Écris ou parle d'un client...", en: 'Write or speak about a customer...' };
-    document.getElementById('messageInput').placeholder = p[lang];
-  }
-
-  function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
-  function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
-  function useSuggestion(el) { document.getElementById('messageInput').value = el.textContent; sendMessage(); }
-  function formatTime() { return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
-
-  // ── Messages ──
-  function addMessage(role, text) {
-    document.getElementById('welcome')?.remove();
-    const messages = document.getElementById('messages');
-    const div = document.createElement('div');
-    div.className = `message ${role}`;
-    if (role === 'assistant') {
-      const formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-      div.innerHTML = `
-        <div class="avatar">✨</div>
-        <div>
-          <div class="bubble">${formatted}</div>
-          <div class="bubble-meta">
-            <span class="bubble-time">${formatTime()}</span>
-            <button class="speak-btn" onclick="speakText(this)">🔊 Vorlesen</button>
-          </div>
-        </div>`;
-      div.querySelector('.speak-btn').dataset.text = text;
-    } else {
-      div.innerHTML = `
-        <div class="avatar">👤</div>
-        <div>
-          <div class="bubble">${text.replace(/\n/g, '<br>')}</div>
-          <div class="bubble-meta"><span class="bubble-time">${formatTime()}</span></div>
-        </div>`;
-    }
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-    return div;
-  }
-
-  function showTyping() {
-    const div = document.createElement('div');
-    div.className = 'message assistant'; div.id = 'typing';
-    div.innerHTML = `<div class="avatar">✨</div><div class="typing"><span></span><span></span><span></span></div>`;
-    document.getElementById('messages').appendChild(div);
-    document.getElementById('messages').scrollTop = 99999;
-  }
-  function removeTyping() { document.getElementById('typing')?.remove(); }
-
-  // ── Send ──
-  async function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const text = input.value.trim();
-    if (!text) return;
-    document.getElementById('sendBtn').disabled = true;
-    input.value = ''; input.style.height = 'auto';
-    addMessage('user', text);
-    showTyping();
-    const wasVoice = voiceMode;
-    voiceMode = false;
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, language: currentLang, history: conversationHistory })
-      });
-      const data = await res.json();
-      removeTyping();
-      const reply = data.reply || 'Keine Antwort.';
-      conversationHistory.push({ role: 'user', content: text });
-      conversationHistory.push({ role: 'assistant', content: reply });
-      if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
-      const msgDiv = addMessage('assistant', reply);
-      if (wasVoice) {
-        const btn = msgDiv.querySelector('.speak-btn');
-        if (btn) speakText(btn);
-      }
-      if (sidebarVisible) loadContacts();
-    } catch (e) {
-      removeTyping();
-      addMessage('assistant', '⚠️ Verbindungsfehler.');
-    }
+  }).catch(function() {
+    removeTyping();
+    addMessage('assistant', '⚠️ Verbindungsfehler.');
+  }).finally(function() {
     document.getElementById('sendBtn').disabled = false;
     document.getElementById('messageInput').focus();
-  }
+  });
+}
 
-  // ── Contacts ──
-  async function loadContacts() {
-    try {
-      const res = await fetch(`${BACKEND_URL}/contacts`);
-      allContacts = await res.json();
-      renderContacts(allContacts);
-    } catch (e) {
-      document.getElementById('contactsList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nicht erreichbar</div>';
+function loadContacts() {
+  fetch(BACKEND_URL + "/contacts").then(function(res) { return res.json(); }).then(function(data) {
+    allContacts = data;
+    renderContacts(allContacts);
+  }).catch(function() {
+    document.getElementById('contactsList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Nicht erreichbar</div>';
+  });
+}
+
+function renderContacts(contacts) {
+  var list = document.getElementById('contactsList');
+  if (!contacts || !contacts.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Noch keine Kontakte</div>'; return; }
+  list.innerHTML = contacts.map(function(c) {
+    var name = (c.company_name || '').replace(/'/g, "\\'");
+    return '<div class="contact-card"><div class="contact-top"><div class="contact-info" onclick="askAbout(\'' + name + '\')"><div class="contact-company">' + (c.company_name || '–') + '</div><div class="contact-name">' + (c.contact_name || '') + '</div></div><div class="contact-actions"><button class="contact-action-btn" onclick="openEdit(\'' + c.id + '\')" title="Bearbeiten">✏️</button><button class="contact-action-btn delete" onclick="deleteContact(\'' + c.id + '\', \'' + name + '\')" title="Löschen">🗑️</button></div></div>' + (c.status ? '<div class="contact-status ' + c.status.toLowerCase() + '">' + c.status + '</div>' : '') + '</div>';
+  }).join('');
+}
+
+function filterContacts() {
+  var q = document.getElementById('searchInput').value.toLowerCase();
+  renderContacts(allContacts.filter(function(c) { return (c.company_name||'').toLowerCase().includes(q) || (c.contact_name||'').toLowerCase().includes(q); }));
+}
+
+function askAbout(company) {
+  var phrases = { de: 'Was weißt du über ' + company + '?', fr: 'Que sais-tu sur ' + company + '?', en: 'What do you know about ' + company + '?' };
+  document.getElementById('messageInput').value = phrases[currentLang];
+  sendMessage();
+}
+
+function deleteContact(id, name) {
+  if (!confirm('"' + name + '" wirklich löschen?')) return;
+  fetch(BACKEND_URL + "/contacts/" + id, { method: 'DELETE' }).then(function(res) {
+    if (res.ok) { allContacts = allContacts.filter(function(c) { return c.id !== id; }); renderContacts(allContacts); }
+    else alert('Fehler beim Löschen.');
+  }).catch(function() { alert('Verbindungsfehler.'); });
+}
+
+function openEdit(id) {
+  var c = allContacts.find(function(x) { return x.id === id; });
+  if (!c) return;
+  document.getElementById('editId').value = c.id;
+  document.getElementById('editCompany').value = c.company_name || '';
+  document.getElementById('editContact').value = c.contact_name || '';
+  document.getElementById('editEmail').value = c.email || '';
+  document.getElementById('editPhone').value = c.phone || '';
+  document.getElementById('editStatus').value = c.status || 'interessiert';
+  document.getElementById('editNotes').value = c.notes || '';
+  document.getElementById('editModal').classList.add('visible');
+}
+
+function closeModal() { document.getElementById('editModal').classList.remove('visible'); }
+
+function saveContact() {
+  var id = document.getElementById('editId').value;
+  var payload = { company_name: document.getElementById('editCompany').value, contact_name: document.getElementById('editContact').value, email: document.getElementById('editEmail').value, phone: document.getElementById('editPhone').value, status: document.getElementById('editStatus').value, notes: document.getElementById('editNotes').value };
+  fetch(BACKEND_URL + "/contacts/" + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(function(res) {
+    if (res.ok) { closeModal(); loadContacts(); }
+    else alert('Fehler beim Speichern.');
+  }).catch(function() { alert('Verbindungsfehler.'); });
+}
+
+document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+function exportCSV() {
+  if (!allContacts.length) { alert('Keine Kontakte.'); return; }
+  var fields = ['company_name','contact_name','email','phone','language','status','last_contact','notes'];
+  var rows = [fields.join(';')];
+  for (var i = 0; i < allContacts.length; i++) {
+    var c = allContacts[i];
+    var cols = [];
+    for (var j = 0; j < fields.length; j++) {
+      var val = String(c[fields[j]] || '');
+      val = val.split('"').join('""');
+      val = val.split('\n').join(' ');
+      val = val.split('\r').join('');
+      cols.push('"' + val + '"');
     }
+    rows.push(cols.join(';'));
   }
+  var csv = rows.join('\r\n');
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'kundendb_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-  function renderContacts(contacts) {
-    const list = document.getElementById('contactsList');
-    if (!contacts?.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Noch keine Kontakte</div>'; return; }
-    list.innerHTML = contacts.map(c => `
-      <div class="contact-card">
-        <div class="contact-top">
-          <div class="contact-info" onclick="askAbout('${(c.company_name||'').replace(/'/g,"\\'")}')">
-            <div class="contact-company">${c.company_name || '–'}</div>
-            <div class="contact-name">${c.contact_name || ''}</div>
-          </div>
-          <div class="contact-actions">
-            <button class="contact-action-btn" onclick="openEdit('${c.id}')" title="Bearbeiten">✏️</button>
-            <button class="contact-action-btn delete" onclick="deleteContact('${c.id}', '${(c.company_name||'').replace(/'/g,"\\'")}', this)" title="Löschen">🗑️</button>
-          </div>
-        </div>
-        ${c.status ? `<div class="contact-status ${c.status.toLowerCase()}">${c.status}</div>` : ''}
-      </div>`).join('');
-  }
-
-  function filterContacts() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    renderContacts(allContacts.filter(c => (c.company_name||'').toLowerCase().includes(q) || (c.contact_name||'').toLowerCase().includes(q)));
-  }
-
-  function askAbout(company) {
-    const phrases = { de: `Was weißt du über ${company}?`, fr: `Que sais-tu sur ${company}?`, en: `What do you know about ${company}?` };
-    document.getElementById('messageInput').value = phrases[currentLang];
-    sendMessage();
-  }
-
-  // ── CSV Export ──
-  function exportCSV() {
-    if (!allContacts.length) { alert('Keine Kontakte zum Exportieren.'); return; }
-    const fields = ['company_name','contact_name','email','phone','language','status','last_contact','notes'];
-    const headers = fields.join(';');
-    const rows = allContacts.map(c =>
-      fields.map(f => {
-        let val = String(c[f] || '');
-        val = val.split('"').join('""');
-        val = val.split('\n').join(' ');
-        val = val.split('\r').join(' ');
-        return '"' + val + '"';
-      }).join(';')
-    );
-    const lines = [headers].concat(rows);
-    const csv = lines.join('\r\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'kundendb_' + new Date().toISOString().slice(0,10) + '.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  // ── CSV Import ──
-  async function importCSV(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const text = await file.text();
-    const lines = text.split('
-').filter(l => l.trim());
+function importCSV(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    var lines = text.split('\n').filter(function(l) { return l.trim(); });
     if (lines.length < 2) { alert('Keine Daten gefunden.'); return; }
-
-    // Header erkennen
-    const sep = lines[0].includes(';') ? ';' : ',';
-    const headers = lines[0].split(sep).map(h => h.replace(/"/g, '').trim().toLowerCase());
-
-    const records = [];
-    for (let i = 1; i < lines.length; i++) {
-      const vals = lines[i].split(sep).map(v => v.replace(/^"|"$/g, '').trim());
-      const obj = {};
-      headers.forEach((h, idx) => { if (vals[idx] !== undefined) obj[h] = vals[idx]; });
+    var sep = lines[0].includes(';') ? ';' : ',';
+    var headers = lines[0].split(sep).map(function(h) { return h.replace(/"/g,'').trim().toLowerCase(); });
+    var records = [];
+    for (var i = 1; i < lines.length; i++) {
+      var vals = lines[i].split(sep).map(function(v) { return v.replace(/^"|"$/g,'').trim(); });
+      var obj = {};
+      for (var j = 0; j < headers.length; j++) { if (vals[j] !== undefined) obj[headers[j]] = vals[j]; }
       if (obj.company_name) records.push(obj);
     }
+    if (!records.length) { alert('Keine gültigen Einträge.'); return; }
+    if (!confirm(records.length + ' Kontakte importieren?')) return;
+    var success = 0; var failed = 0;
+    var promises = records.map(function(rec) {
+      return fetch(BACKEND_URL + "/contacts/import", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) })
+        .then(function(res) { if (res.ok) success++; else failed++; })
+        .catch(function() { failed++; });
+    });
+    Promise.all(promises).then(function() {
+      alert('Import: ' + success + ' erfolgreich, ' + failed + ' fehlgeschlagen.');
+      input.value = '';
+      loadContacts();
+    });
+  };
+  reader.readAsText(file, 'UTF-8');
+}
 
-    if (!records.length) { alert('Keine gültigen Einträge gefunden.'); return; }
+async function startMic(e) {
+  if (e) e.preventDefault();
+  if (micHeld) return;
+  if (currentAudio) {
+    audioEl.pause(); audioEl.src = ''; currentAudio = null;
+    if (activeSpeakBtn) { activeSpeakBtn.textContent = '🔊 Vorlesen'; activeSpeakBtn.classList.remove('speaking','loading'); activeSpeakBtn = null; }
+    await new Promise(function(r) { setTimeout(r, 200); });
+  }
+  try {
+    var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micHeld = true; audioChunks = [];
+    var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : {});
+    mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.start(100);
+    var btn = document.getElementById('micBtn');
+    btn.classList.add('recording'); btn.textContent = '🔴';
+  } catch(err) {
+    alert('Mikrofon-Zugriff verweigert.');
+  }
+}
 
-    const confirm_import = confirm(`${records.length} Kontakte importieren?`);
-    if (!confirm_import) return;
-
-    let success = 0, failed = 0;
-    for (const rec of records) {
-      try {
-        const res = await fetch(`${BACKEND_URL}/contacts/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(rec)
-        });
-        if (res.ok) success++;
-        else failed++;
-      } catch(e) { failed++; }
+async function stopMic() {
+  if (!micHeld || !mediaRecorder) return;
+  micHeld = false;
+  var btn = document.getElementById('micBtn');
+  btn.classList.remove('recording'); btn.textContent = '⏳'; btn.disabled = true;
+  mediaRecorder.stop();
+  mediaRecorder.stream.getTracks().forEach(function(t) { t.stop(); });
+  await new Promise(function(r) { mediaRecorder.onstop = r; });
+  var mimeType = mediaRecorder.mimeType || 'audio/webm';
+  var ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+  var blob = new Blob(audioChunks, { type: mimeType });
+  mediaRecorder = null; audioChunks = [];
+  if (blob.size < 1000) { btn.textContent = '🎤'; btn.disabled = false; return; }
+  try {
+    var companies = allContacts.map(function(c) { return c.company_name; }).filter(Boolean).join(', ');
+    var formData = new FormData();
+    formData.append('audio', blob, 'recording.' + ext);
+    formData.append('language', currentLang);
+    formData.append('companies', companies);
+    var res = await fetch(BACKEND_URL + "/transcribe", { method: 'POST', body: formData });
+    var data = await res.json();
+    var transcript = data.transcript || '';
+    if (transcript) {
+      document.getElementById('messageInput').value = transcript;
+      autoResize(document.getElementById('messageInput'));
+      voiceMode = true;
+      sendMessage();
     }
+  } catch(err) { console.error('Transcribe error:', err); }
+  btn.textContent = '🎤'; btn.disabled = false;
+}
 
-    alert(`Import abgeschlossen: ${success} erfolgreich, ${failed} fehlgeschlagen.`);
-    input.value = '';
-    loadContacts();
+function stopAudio() {
+  if (currentAudio) {
+    audioEl.pause(); audioEl.src = ''; currentAudio = null;
+    if (activeSpeakBtn) { activeSpeakBtn.textContent = '🔊 Vorlesen'; activeSpeakBtn.classList.remove('speaking','loading'); activeSpeakBtn = null; }
   }
+}
 
-  // ── Delete ──
-  async function deleteContact(id, name, btn) {
-    if (!confirm(`"${name}" wirklich löschen?`)) return;
-    try {
-      const res = await fetch(`${BACKEND_URL}/contacts/${id}`, { method: 'DELETE' });
-      if (res.ok) { allContacts = allContacts.filter(c => c.id !== id); renderContacts(allContacts); }
-      else alert('Fehler beim Löschen.');
-    } catch (e) { alert('Verbindungsfehler.'); }
-  }
-
-  // ── Edit Modal ──
-  function openEdit(id) {
-    const c = allContacts.find(x => x.id === id);
-    if (!c) return;
-    document.getElementById('editId').value = c.id;
-    document.getElementById('editCompany').value = c.company_name || '';
-    document.getElementById('editContact').value = c.contact_name || '';
-    document.getElementById('editEmail').value = c.email || '';
-    document.getElementById('editPhone').value = c.phone || '';
-    document.getElementById('editStatus').value = c.status || 'interessiert';
-    document.getElementById('editNotes').value = c.notes || '';
-    document.getElementById('editModal').classList.add('visible');
-  }
-
-  function closeModal() { document.getElementById('editModal').classList.remove('visible'); }
-
-  async function saveContact() {
-    const id = document.getElementById('editId').value;
-    const payload = {
-      company_name: document.getElementById('editCompany').value,
-      contact_name: document.getElementById('editContact').value,
-      email: document.getElementById('editEmail').value,
-      phone: document.getElementById('editPhone').value,
-      status: document.getElementById('editStatus').value,
-      notes: document.getElementById('editNotes').value,
-    };
-    try {
-      const res = await fetch(`${BACKEND_URL}/contacts/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) { closeModal(); loadContacts(); }
-      else alert('Fehler beim Speichern.');
-    } catch (e) { alert('Verbindungsfehler.'); }
-  }
-
-  // Klick außerhalb Modal schließt es
-  document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
-
-  // ── 🎤 Push-to-Talk ──
-  let recognition = null;
-  let isRecording = false;
-
-  let micHeld = false;
-  let mediaRecorder = null;
-  let audioChunks = [];
-
-  async function startMic(e) {
-    if (e) e.preventDefault();
-    if (micHeld) return;
-
-    // Laufende Ausgabe stoppen
-    if (currentAudio) {
-      audioEl.pause();
-      audioEl.src = '';
-      currentAudio = null;
-      if (activeSpeakBtn) { activeSpeakBtn.textContent = '🔊 Vorlesen'; activeSpeakBtn.classList.remove('speaking', 'loading'); activeSpeakBtn = null; }
-      await new Promise(r => setTimeout(r, 200));
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micHeld = true;
-      audioChunks = [];
-
-      // Bestes Format für iOS/Android
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
-                       MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
-                       MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
-
-      mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunks.push(e.data);
-      };
-
-      mediaRecorder.start(100);
-
-      const btn = document.getElementById('micBtn');
-      btn.classList.add('recording');
-      btn.textContent = '🔴';
-
-    } catch(err) {
-      console.error('Mic access error:', err);
-      alert('Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.');
-    }
-  }
-
-  async function stopMic() {
-    if (!micHeld || !mediaRecorder) return;
-    micHeld = false;
-
-    const btn = document.getElementById('micBtn');
-    btn.classList.remove('recording');
-    btn.textContent = '⏳';
-    btn.disabled = true;
-
-    mediaRecorder.stop();
-    mediaRecorder.stream.getTracks().forEach(t => t.stop());
-
-    await new Promise(r => { mediaRecorder.onstop = r; });
-
-    const mimeType = mediaRecorder.mimeType || 'audio/webm';
-    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-    const blob = new Blob(audioChunks, { type: mimeType });
-
-    mediaRecorder = null;
-    audioChunks = [];
-
-    // Zu kurze Aufnahmen ignorieren
-    if (blob.size < 1000) {
-      btn.textContent = '🎤';
-      btn.disabled = false;
-      return;
-    }
-
-    // An Whisper senden
-    try {
-      const companies = allContacts.map(c => c.company_name).filter(Boolean).join(', ');
-      const formData = new FormData();
-      formData.append('audio', blob, `recording.${ext}`);
-      formData.append('language', currentLang);
-      formData.append('companies', companies);
-
-      const res = await fetch(`${BACKEND_URL}/transcribe`, {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await res.json();
-      const transcript = data.transcript || '';
-
-      if (transcript) {
-        document.getElementById('messageInput').value = transcript;
-        autoResize(document.getElementById('messageInput'));
-        voiceMode = true;
-        sendMessage();
-      }
-    } catch(err) {
-      console.error('Transcribe error:', err);
-    }
-
-    btn.textContent = '🎤';
-    btn.disabled = false;
-  }
-
-  function setVolume(val) { audioEl.volume = parseFloat(val); }
-
-  // ── 🔊 Sprachausgabe ──
-  function stopAudio() {
-    if (currentAudio) {
-      audioEl.pause();
-      audioEl.src = '';
-      currentAudio = null;
-      if (activeSpeakBtn) { activeSpeakBtn.textContent = '🔊 Vorlesen'; activeSpeakBtn.classList.remove('speaking', 'loading'); activeSpeakBtn = null; }
-    }
-  }
-
-  async function speakText(btn) {
-    if (currentAudio) { stopAudio(); return; }
-
-    const text = btn.dataset.text || '';
-    btn.textContent = '⏳ Laden...';
-    btn.classList.add('loading');
-    activeSpeakBtn = btn;
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/speak`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, language: currentLang })
-      });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-
-      audioEl.src = url;
-      audioEl.load();
-      btn.textContent = '⏹️ Stop';
-      btn.classList.remove('loading');
-      btn.classList.add('speaking');
-      currentAudio = audioEl;
-
-      audioEl.onended = () => { btn.textContent = '🔊 Vorlesen'; btn.classList.remove('speaking'); currentAudio = null; activeSpeakBtn = null; URL.revokeObjectURL(url); };
-      audioEl.onerror = () => { btn.textContent = '🔊 Vorlesen'; btn.classList.remove('speaking', 'loading'); currentAudio = null; activeSpeakBtn = null; };
-
-      await audioEl.play();
-    } catch (e) {
-      console.error('Speak error:', e);
-      btn.textContent = '🔊 Vorlesen';
-      btn.classList.remove('loading', 'speaking');
-      activeSpeakBtn = null;
-    }
-  }
+async function speakText(btn) {
+  if (currentAudio) { stopAudio(); return; }
+  var text = btn.dataset.text || '';
+  btn.textContent = '⏳ Laden...'; btn.classList.add('loading'); activeSpeakBtn = btn;
+  try {
+    var res = await fetch(BACKEND_URL + "/speak", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: text, language: currentLang }) });
+    if (!res.ok) throw new Error();
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    audioEl.src = url; audioEl.load();
+    btn.textContent = '⏹️ Stop'; btn.classList.remove('loading'); btn.classList.add('speaking'); currentAudio = audioEl;
+    audioEl.onended = function() { btn.textContent = '🔊 Vorlesen'; btn.classList.remove('speaking'); currentAudio = null; activeSpeakBtn = null; URL.revokeObjectURL(url); };
+    audioEl.onerror = function() { btn.textContent = '🔊 Vorlesen'; btn.classList.remove('speaking','loading'); currentAudio = null; activeSpeakBtn = null; };
+    await audioEl.play();
+  } catch(e) { btn.textContent = '🔊 Vorlesen'; btn.classList.remove('loading','speaking'); activeSpeakBtn = null; }
+}
 </script>
 </body>
 </html>
