@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v2.1 -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -470,11 +471,15 @@
     const headers = fields.join(';');
     const rows = allContacts.map(c =>
       fields.map(f => {
-        const val = String(c[f] || '').replace(/"/g, '""').replace(/\r?\n/g, ' ');
+        let val = String(c[f] || '');
+        val = val.split('"').join('""');
+        val = val.split('\n').join(' ');
+        val = val.split('\r').join(' ');
         return '"' + val + '"';
       }).join(';')
     );
-    const csv = [headers].concat(rows).join('\r\n');
+    const lines = [headers].concat(rows);
+    const csv = lines.join('\r\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
