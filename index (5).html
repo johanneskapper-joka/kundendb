@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<!-- v4.0-velo -->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velo – Intelligent CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;1,300&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --border: #e2e0d8;
+    --accent: #1a1a1a;
+    --accent2: #3d3d3d;
+    --soft: #6b6860;
+    --text: #1a1a1a;
+    --text-muted: #9a9890;
+    --user-bubble: #1a1a1a;
+    --ai-bubble: #ffffff;
+    --success: #2d7a4f;
+    --danger: #c0392b;
+    --radius: 18px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Geist', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0; gap: 12px;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-mark {
+    width: 36px; height: 36px; background: var(--accent);
+    border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  }
+  .logo-mark svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; }
+  .logo-name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; letter-spacing: -0.5px; color: var(--text); }
+  .logo-name em { font-style: italic; }
+  .logo-tag { font-size: 10px; font-weight: 500; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px; }
+
+  .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .lang-selector { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .lang-btn { padding: 5px 10px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-family: 'Geist', sans-serif; font-size: 11px; font-weight: 500; transition: all 0.15s; letter-spacing: 0.5px; }
+  .lang-btn.active { background: var(--accent); color: #fff; }
+  .lang-btn:hover:not(.active) { color: var(--text); }
+
+  .hdr-btn { padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); cursor: pointer; font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 500; transition: all 0.15s; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .hdr-btn:hover { color: var(--text); border-color: var(--accent); background: var(--surface); }
+  .hdr-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  
+
+  /* Layout */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 270px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.3s ease, opacity 0.3s ease; overflow: hidden; }
+  .sidebar.hidden { width: 0; opacity: 0; pointer-events: none; }
+  .sidebar-header { padding: 16px 16px 10px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+  .sidebar-actions { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .sidebar-action-btn { flex: 1; padding: 6px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text-muted); cursor: pointer; font-family: 'Geist', sans-serif; font-size: 11px; font-weight: 500; text-align: center; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .sidebar-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sidebar-search { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .sidebar-search input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 11px; color: var(--text); font-family: 'Geist', sans-serif; font-size: 12px; outline: none; transition: border-color 0.15s; }
+  .sidebar-search input:focus { border-color: var(--accent); }
+  .sidebar-search input::placeholder { color: var(--text-muted); }
+  .contacts-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .contacts-list::-webkit-scrollbar { width: 3px; }
+  .contacts-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .contact-card { padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; margin-bottom: 2px; transition: all 0.15s; }
+  .contact-card:hover { background: var(--surface2); border-color: var(--border); }
+  .contact-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .contact-info { flex: 1; cursor: pointer; min-width: 0; }
+  .contact-company { font-weight: 500; font-size: 13px; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contact-name { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contact-actions { display: flex; gap: 3px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
+  .contact-card:hover .contact-actions, .contact-actions.always { opacity: 1; }
+  .contact-action-btn { width: 24px; height: 24px; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; background: transparent; color: var(--text-muted); transition: all 0.15s; }
+  .contact-action-btn:hover { background: var(--border); color: var(--text); }
+  .contact-action-btn.delete:hover { background: #fde8e8; color: var(--danger); }
+  .contact-status { display: inline-block; margin-top: 5px; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 500; letter-spacing: 0.3px; }
+  .contact-status.aktiv { background: #e8f5ee; color: var(--success); }
+  .contact-status.interessiert { background: #e8eef8; color: #2d4a7a; }
+  .contact-status.inaktiv { background: var(--surface2); color: var(--text-muted); }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(26,26,26,0.4); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-overlay.visible { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); }
+  .modal h3 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; margin-bottom: 20px; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-field label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+  .modal-field input, .modal-field textarea, .modal-field select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; color: var(--text); font-family: 'Geist', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .modal-field input:focus, .modal-field textarea:focus, .modal-field select:focus { border-color: var(--accent); }
+  .modal-field textarea { resize: vertical; min-height: 80px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .btn-primary { flex: 1; padding: 10px; background: var(--accent); border: none; border-radius: 10px; color: #fff; font-family: 'Geist', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-secondary { flex: 1; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); font-family: 'Geist', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+
+  /* Chat */
+  .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+  .messages { flex: 1; overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+  .messages::-webkit-scrollbar { width: 3px; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 24px; gap: 16px; }
+  .welcome-mark { width: 64px; height: 64px; background: var(--accent); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .welcome-mark svg { width: 32px; height: 32px; fill: none; stroke: #fff; stroke-width: 1.5; stroke-linecap: round; }
+  .welcome h2 { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 300; letter-spacing: -0.5px; }
+  .welcome p { font-size: 14px; color: var(--text-muted); max-width: 320px; line-height: 1.7; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+  .suggestion { padding: 7px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow); }
+  .suggestion:hover { border-color: var(--accent); color: var(--text); background: var(--surface); }
+
+  .message { display: flex; gap: 10px; opacity: 0; animation: slideIn 0.25s ease forwards; }
+  .message.user { flex-direction: row-reverse; align-self: flex-end; max-width: 80%; }
+  .message.assistant { align-self: flex-start; max-width: 80%; }
+  .avatar { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .message.user .avatar { background: var(--accent); }
+  .message.user .avatar svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2; }
+  .message.assistant .avatar { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .message.assistant .avatar svg { width: 16px; height: 16px; fill: none; stroke: var(--accent); stroke-width: 1.5; }
+  .bubble { padding: 12px 16px; border-radius: var(--radius); font-size: 14px; line-height: 1.7; }
+  .message.user .bubble { background: var(--user-bubble); color: #fff; border-top-right-radius: 5px; }
+  .message.assistant .bubble { background: var(--ai-bubble); border: 1px solid var(--border); border-top-left-radius: 5px; box-shadow: var(--shadow); color: var(--text); }
+  .bubble-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .bubble-time { font-size: 11px; color: var(--text-muted); }
+  .speak-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; color: var(--text-muted); cursor: pointer; font-family: 'Geist', sans-serif; font-size: 11px; font-weight: 500; transition: all 0.15s; }
+  .speak-btn:hover { border-color: var(--accent); color: var(--text); }
+  .speak-btn.speaking { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .speak-btn.loading { opacity: 0.5; cursor: wait; }
+
+  .typing { display: flex; align-items: center; gap: 4px; padding: 12px 16px; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: var(--radius); border-top-left-radius: 5px; width: fit-content; box-shadow: var(--shadow); }
+  .typing span { width: 5px; height: 5px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+  /* Input */
+  .input-area { padding: 16px 24px 20px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .input-wrapper { display: flex; gap: 8px; align-items: flex-end; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 14px; padding: 10px 12px; transition: border-color 0.15s; }
+  .input-wrapper:focus-within { border-color: var(--accent); background: var(--surface); }
+  textarea { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: 'Geist', sans-serif; font-size: 14px; resize: none; max-height: 120px; line-height: 1.6; }
+  textarea::placeholder { color: var(--text-muted); }
+
+  .action-btn { width: 36px; height: 36px; border: none; border-radius: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+  .mic-btn { background: var(--surface); border: 1px solid var(--border) !important; color: var(--text-muted); font-size: 16px; }
+  .mic-btn:hover { border-color: var(--accent) !important; color: var(--text); }
+  .mic-btn.recording { background: #fde8e8; border-color: var(--danger) !important; animation: recPulse 1s infinite; }
+  .send-btn { background: var(--accent); }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .send-btn svg { width: 16px; height: 16px; fill: #fff; }
+  .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; text-align: center; letter-spacing: 0.2px; }
+
+  @keyframes recPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.3); } 50% { box-shadow: 0 0 0 5px rgba(192,57,43,0); } }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-5px); opacity: 1; } }
+
+  @media (max-width: 600px) {
+    .sidebar { position: absolute; z-index: 20; height: 100%; box-shadow: var(--shadow-lg); }
+    .messages { padding: 16px 14px; }
+    .input-area { padding: 12px 14px 16px; }
+    .contact-actions { opacity: 1; }
+    .logo-tag { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>Kontakt bearbeiten</h3>
+    <input type="hidden" id="editId">
+    <div class="modal-field"><label>Firma</label><input type="text" id="editCompany"></div>
+    <div class="modal-field"><label>Ansprechpartner</label><input type="text" id="editContact"></div>
+    <div class="modal-field"><label>E-Mail</label><input type="text" id="editEmail"></div>
+    <div class="modal-field"><label>Telefon</label><input type="text" id="editPhone"></div>
+    <div class="modal-field"><label>Status</label>
+      <select id="editStatus">
+        <option value="interessiert">Interessiert</option>
+        <option value="aktiv">Aktiv</option>
+        <option value="inaktiv">Inaktiv</option>
+      </select>
+    </div>
+    <div class="modal-field"><label>Notizen</label><textarea id="editNotes"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Abbrechen</button>
+      <button class="btn-primary" onclick="saveContact()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg>
+    </div>
+    <div>
+      <div class="logo-name">Ve<em>lo</em></div>
+      <div class="logo-tag">Intelligent CRM</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="hdr-btn" id="sidebarToggle" onclick="toggleSidebar()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+      Kontakte
+    </button>
+    <button class="hdr-btn" onclick="clearHistory()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      Neu
+    </button>
+
+    <div class="lang-selector">
+      <button class="lang-btn active" onclick="setLang('de', this)">DE</button>
+      <button class="lang-btn" onclick="setLang('fr', this)">FR</button>
+      <button class="lang-btn" onclick="setLang('en', this)">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="sidebar hidden" id="sidebar">
+    <div class="sidebar-header">Kontakte</div>
+    <div class="sidebar-actions">
+      <button class="sidebar-action-btn" onclick="exportCSV()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+      <label class="sidebar-action-btn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import
+        <input type="file" id="csvImport" accept=".csv" style="display:none" onchange="importCSV(this)">
+      </label>
+    </div>
+    <div class="sidebar-search">
+      <input type="text" id="searchInput" placeholder="Suchen..." oninput="filterContacts()">
+    </div>
+    <div class="contacts-list" id="contactsList">
+      <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Wird geladen...</div>
+    </div>
+  </div>
+
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-mark">
+          <svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg>
+        </div>
+        <h2>Guten Tag.</h2>
+        <p>Sprich oder schreib mit mir über deine Kunden. Ich merke mir alles und denke mit.</p>
+        <div class="suggestions">
+          <div class="suggestion" onclick="useSuggestion(this)">Was weißt du über Müller GmbH?</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Welche Kunden sind inaktiv?</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Trag ein: Schmidt AG hat heute angerufen</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Qui sont mes clients intéressés?</div>
+        </div>
+      </div>
+    </div>
+    <div class="input-area">
+      <div class="input-wrapper">
+        <textarea id="messageInput" placeholder="Schreib oder sprich mit mir..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="action-btn mic-btn" id="micBtn" title="Halten zum Sprechen" onmousedown="startMic()" onmouseup="stopMic()" onmouseleave="stopMic()" ontouchstart="startMic(event)" ontouchend="stopMic()">🎤</button>
+        <button class="action-btn send-btn" id="sendBtn" onclick="sendMessage()" title="Senden">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <div class="input-hint">Return zum Senden &middot; 🎤 halten zum Sprechen</div>
+    </div>
+  </div>
+</div>
+
+<audio id="audioPlayer" playsinline webkit-playsinline></audio>
+
+<script>
+var BACKEND_URL = "https://kundendb.onrender.com";
+var audioEl = document.getElementById('audioPlayer');
+var currentLang = "de";
+var allContacts = [];
+var sidebarVisible = false;
+var voiceMode = false;
+var conversationHistory = [];
+var currentAudio = null;
+var activeSpeakBtn = null;
+var audioUnlocked = false;
+var micHeld = false;
+var mediaRecorder = null;
+var audioChunks = [];
+
+audioEl.volume = 0.5;
+fetch(BACKEND_URL + "/health").catch(function(){});
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioEl.src = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA";
+  audioEl.play().then(function() { audioEl.pause(); audioEl.src = ""; audioUnlocked = true; }).catch(function(){});
+}
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('mousedown', unlockAudio, { once: true });
+
+function toggleSidebar() {
+  sidebarVisible = !sidebarVisible;
+  document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
+  document.getElementById('sidebarToggle').classList.toggle('active', sidebarVisible);
+  if (sidebarVisible) loadContacts();
+}
+
+function clearHistory() {
+  conversationHistory = [];
+  document.getElementById('messages').innerHTML = '<div class="welcome" id="welcome"><div class="welcome-mark"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg></div><h2>Neues Gespräch.</h2><p>Womit kann ich dir helfen?</p></div>';
+}
+
+function setLang(lang, btn) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function useSuggestion(el) { document.getElementById('messageInput').value = el.textContent; sendMessage(); }
+function formatTime() { return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
+
+function addMessage(role, text) {
+  var welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+  var messages = document.getElementById('messages');
+  var div = document.createElement('div');
+  div.className = 'message ' + role;
+  var userAvatar = '<div class="avatar"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>';
+  var aiAvatar = '<div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/></svg></div>';
+  if (role === 'assistant') {
+    var formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+    div.innerHTML = aiAvatar + '<div><div class="bubble">' + formatted + '</div><div class="bubble-meta"><span class="bubble-time">' + formatTime() + '</span><button class="speak-btn" onclick="speakText(this)">▶ Vorlesen</button></div></div>';
+    div.querySelector('.speak-btn').dataset.text = text;
+  } else {
+    div.innerHTML = userAvatar + '<div><div class="bubble">' + text.replace(/\n/g, '<br>') + '</div><div class="bubble-meta"><span class="bubble-time">' + formatTime() + '</span></div></div>';
+  }
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+  return div;
+}
+
+function showTyping() {
+  var div = document.createElement('div');
+  div.className = 'message assistant'; div.id = 'typing';
+  var aiAvatar = '<div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/></svg></div>';
+  div.innerHTML = aiAvatar + '<div class="typing"><span></span><span></span><span></span></div>';
+  document.getElementById('messages').appendChild(div);
+  document.getElementById('messages').scrollTop = 99999;
+}
+function removeTyping() { var t = document.getElementById('typing'); if (t) t.remove(); }
+
+function sendMessage() {
+  var input = document.getElementById('messageInput');
+  var text = input.value.trim();
+  if (!text) return;
+  document.getElementById('sendBtn').disabled = true;
+  input.value = ''; input.style.height = 'auto';
+  addMessage('user', text);
+  showTyping();
+  var wasVoice = voiceMode;
+  voiceMode = false;
+  fetch(BACKEND_URL + "/chat", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text, language: currentLang, history: conversationHistory })
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    removeTyping();
+    var reply = data.reply || 'Keine Antwort.';
+    conversationHistory.push({ role: 'user', content: text });
+    conversationHistory.push({ role: 'assistant', content: reply });
+    if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
+    var msgDiv = addMessage('assistant', reply);
+    if (wasVoice) { var btn = msgDiv.querySelector('.speak-btn'); if (btn) speakText(btn); }
+    if (sidebarVisible) loadContacts();
+  }).catch(function() {
+    removeTyping();
+    addMessage('assistant', 'Verbindungsfehler – bitte erneut versuchen.');
+  }).finally(function() {
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('messageInput').focus();
+  });
+}
+
+function loadContacts() {
+  fetch(BACKEND_URL + "/contacts").then(function(res) { return res.json(); }).then(function(data) {
+    allContacts = data; renderContacts(allContacts);
+  }).catch(function() {
+    document.getElementById('contactsList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Nicht erreichbar</div>';
+  });
+}
+
+function renderContacts(contacts) {
+  var list = document.getElementById('contactsList');
+  if (!contacts || !contacts.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Keine Kontakte</div>'; return; }
+  list.innerHTML = contacts.map(function(c) {
+    var name = (c.company_name || '').replace(/'/g, "\\'");
+    var statusClass = (c.status || '').toLowerCase();
+    return '<div class="contact-card"><div class="contact-top"><div class="contact-info" onclick="askAbout(\'' + name + '\')"><div class="contact-company">' + (c.company_name || '–') + '</div><div class="contact-name">' + (c.contact_name || '') + '</div></div><div class="contact-actions always"><button class="contact-action-btn" onclick="openEdit(\'' + c.id + '\')" title="Bearbeiten">✏</button><button class="contact-action-btn delete" onclick="deleteContact(\'' + c.id + '\', \'' + name + '\')" title="Löschen">✕</button></div></div>' + (c.status ? '<div class="contact-status ' + statusClass + '">' + c.status + '</div>' : '') + '</div>';
+  }).join('');
+}
+
+function filterContacts() {
+  var q = document.getElementById('searchInput').value.toLowerCase();
+  renderContacts(allContacts.filter(function(c) { return (c.company_name||'').toLowerCase().includes(q) || (c.contact_name||'').toLowerCase().includes(q); }));
+}
+
+function askAbout(company) {
+  var phrases = { de: 'Was weißt du über ' + company + '?', fr: 'Que sais-tu sur ' + company + '?', en: 'What do you know about ' + company + '?' };
+  document.getElementById('messageInput').value = phrases[currentLang];
+  sendMessage();
+}
+
+function deleteContact(id, name) {
+  if (!confirm('"' + name + '" wirklich löschen?')) return;
+  fetch(BACKEND_URL + "/contacts/" + id, { method: 'DELETE' }).then(function(res) {
+    if (res.ok) { allContacts = allContacts.filter(function(c) { return c.id !== id; }); renderContacts(allContacts); }
+    else alert('Fehler beim Löschen.');
+  }).catch(function() { alert('Verbindungsfehler.'); });
+}
+
+function openEdit(id) {
+  var c = allContacts.find(function(x) { return x.id === id; });
+  if (!c) return;
+  document.getElementById('editId').value = c.id;
+  document.getElementById('editCompany').value = c.company_name || '';
+  document.getElementById('editContact').value = c.contact_name || '';
+  document.getElementById('editEmail').value = c.email || '';
+  document.getElementById('editPhone').value = c.phone || '';
+  document.getElementById('editStatus').value = c.status || 'interessiert';
+  document.getElementById('editNotes').value = c.notes || '';
+  document.getElementById('editModal').classList.add('visible');
+}
+function closeModal() { document.getElementById('editModal').classList.remove('visible'); }
+function saveContact() {
+  var id = document.getElementById('editId').value;
+  var payload = { company_name: document.getElementById('editCompany').value, contact_name: document.getElementById('editContact').value, email: document.getElementById('editEmail').value, phone: document.getElementById('editPhone').value, status: document.getElementById('editStatus').value, notes: document.getElementById('editNotes').value };
+  fetch(BACKEND_URL + "/contacts/" + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(function(res) {
+    if (res.ok) { closeModal(); loadContacts(); } else alert('Fehler beim Speichern.');
+  }).catch(function() { alert('Verbindungsfehler.'); });
+}
+document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+function exportCSV() {
+  if (!allContacts.length) { alert('Keine Kontakte.'); return; }
+  var fields = ['company_name','contact_name','email','phone','language','status','last_contact','notes'];
+  var rows = [fields.join(';')];
+  for (var i = 0; i < allContacts.length; i++) {
+    var c = allContacts[i]; var cols = [];
+    for (var j = 0; j < fields.length; j++) {
+      var val = String(c[fields[j]] || '');
+      val = val.split('"').join('""');
+      val = val.split('\n').join(' ');
+      val = val.split('\r').join('');
+      cols.push('"' + val + '"');
+    }
+    rows.push(cols.join(';'));
+  }
+  var csv = rows.join('\r\n');
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'velo_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function importCSV(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    var lines = text.split('\n').filter(function(l) { return l.trim(); });
+    if (lines.length < 2) { alert('Keine Daten gefunden.'); return; }
+    var sep = lines[0].includes(';') ? ';' : ',';
+    var headers = lines[0].split(sep).map(function(h) { return h.replace(/"/g,'').trim().toLowerCase(); });
+    var records = [];
+    for (var i = 1; i < lines.length; i++) {
+      var vals = lines[i].split(sep).map(function(v) { return v.replace(/^"|"$/g,'').trim(); });
+      var obj = {};
+      for (var j = 0; j < headers.length; j++) { if (vals[j] !== undefined) obj[headers[j]] = vals[j]; }
+      if (obj.company_name) records.push(obj);
+    }
+    if (!records.length) { alert('Keine gültigen Einträge.'); return; }
+    if (!confirm(records.length + ' Kontakte importieren?')) return;
+    var success = 0; var failed = 0;
+    var promises = records.map(function(rec) {
+      return fetch(BACKEND_URL + "/contacts/import", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) })
+        .then(function(res) { if (res.ok) success++; else failed++; })
+        .catch(function() { failed++; });
+    });
+    Promise.all(promises).then(function() {
+      alert('Import: ' + success + ' erfolgreich, ' + failed + ' fehlgeschlagen.');
+      input.value = ''; loadContacts();
+    });
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+async function startMic(e) {
+  if (e) e.preventDefault();
+  if (micHeld) return;
+  if (currentAudio) {
+    audioEl.pause(); audioEl.src = ''; currentAudio = null;
+    if (activeSpeakBtn) { activeSpeakBtn.textContent = '▶ Vorlesen'; activeSpeakBtn.classList.remove('speaking','loading'); activeSpeakBtn = null; }
+    await new Promise(function(r) { setTimeout(r, 200); });
+  }
+  try {
+    var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micHeld = true; audioChunks = [];
+    var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : {});
+    mediaRecorder.ondataavailable = function(ev) { if (ev.data.size > 0) audioChunks.push(ev.data); };
+    mediaRecorder.start(100);
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('micBtn').textContent = '⏹';
+  } catch(err) { alert('Mikrofon-Zugriff verweigert.'); }
+}
+
+async function stopMic() {
+  if (!micHeld || !mediaRecorder) return;
+  micHeld = false;
+  var btn = document.getElementById('micBtn');
+  btn.classList.remove('recording'); btn.textContent = '…'; btn.disabled = true;
+  mediaRecorder.stop();
+  mediaRecorder.stream.getTracks().forEach(function(t) { t.stop(); });
+  await new Promise(function(r) { mediaRecorder.onstop = r; });
+  var mimeType = mediaRecorder.mimeType || 'audio/webm';
+  var ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+  var blob = new Blob(audioChunks, { type: mimeType });
+  mediaRecorder = null; audioChunks = [];
+  if (blob.size < 1000) { btn.textContent = '🎤'; btn.disabled = false; return; }
+  try {
+    var companies = allContacts.map(function(c) { return c.company_name; }).filter(Boolean).join(', ');
+    var formData = new FormData();
+    formData.append('audio', blob, 'recording.' + ext);
+    formData.append('language', currentLang);
+    formData.append('companies', companies);
+    var res = await fetch(BACKEND_URL + "/transcribe", { method: 'POST', body: formData });
+    var data = await res.json();
+    var transcript = data.transcript || '';
+    if (transcript) {
+      document.getElementById('messageInput').value = transcript;
+      autoResize(document.getElementById('messageInput'));
+      voiceMode = true;
+      sendMessage();
+    }
+  } catch(err) { console.error('Transcribe error:', err); }
+  btn.textContent = '🎤'; btn.disabled = false;
+}
+
+function stopAudio() {
+  if (currentAudio) {
+    audioEl.pause(); audioEl.src = ''; currentAudio = null;
+    if (activeSpeakBtn) { activeSpeakBtn.textContent = '▶ Vorlesen'; activeSpeakBtn.classList.remove('speaking','loading'); activeSpeakBtn = null; }
+  }
+}
+
+async function speakText(btn) {
+  if (currentAudio) { stopAudio(); return; }
+  var text = btn.dataset.text || '';
+  btn.textContent = '…'; btn.classList.add('loading'); activeSpeakBtn = btn;
+  try {
+    var res = await fetch(BACKEND_URL + "/speak", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: text, language: currentLang }) });
+    if (!res.ok) throw new Error();
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    audioEl.src = url; audioEl.load();
+    btn.textContent = '■ Stop'; btn.classList.remove('loading'); btn.classList.add('speaking'); currentAudio = audioEl;
+    audioEl.onended = function() { btn.textContent = '▶ Vorlesen'; btn.classList.remove('speaking'); currentAudio = null; activeSpeakBtn = null; URL.revokeObjectURL(url); };
+    audioEl.onerror = function() { btn.textContent = '▶ Vorlesen'; btn.classList.remove('speaking','loading'); currentAudio = null; activeSpeakBtn = null; };
+    await audioEl.play();
+  } catch(ex) { btn.textContent = '▶ Vorlesen'; btn.classList.remove('loading','speaking'); activeSpeakBtn = null; }
+}
+</script>
+</body>
+</html>
