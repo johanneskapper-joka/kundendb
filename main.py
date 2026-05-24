@@ -427,20 +427,32 @@ async def bulk_import_contact(request: Request):
 
         existing = supabase.table("contacts").select("*").eq("company_name", company_name).execute()
 
+        def clean(val, default=""):
+            v = body.get(val, "") or ""
+            return v.strip() if v.strip() else default
+
         payload = {
             "company_name": company_name,
-            "contact_name": body.get("contact_name", ""),
-            "email": body.get("email", ""),
-            "phone": body.get("phone", ""),
-            "language": body.get("language", "de") or "de",
-            "status": body.get("status", "interessiert") or "interessiert",
-            "notes": body.get("notes", ""),
             "updated_at": datetime.utcnow().isoformat()
         }
 
-        last_contact = body.get("last_contact", "")
-        if last_contact and last_contact.strip():
-            payload["last_contact"] = last_contact.strip()
+        # Nur nicht-leere Felder setzen
+        if clean("contact_name"): payload["contact_name"] = clean("contact_name")
+        if clean("email"): payload["email"] = clean("email")
+        if clean("phone"): payload["phone"] = clean("phone")
+        payload["language"] = clean("language", "de")
+        if clean("status"): payload["status"] = clean("status")
+        if clean("notes"): payload["notes"] = clean("notes")
+
+        last_contact = clean("last_contact")
+        if last_contact:
+            # Datum konvertieren DD.MM.YYYY -> YYYY-MM-DD
+            import re as re2
+            dm = re2.match(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', last_contact)
+            if dm:
+                payload["last_contact"] = f"{dm.group(3)}-{dm.group(2).zfill(2)}-{dm.group(1).zfill(2)}"
+            else:
+                payload["last_contact"] = last_contact
 
         if existing.data:
             supabase.table("contacts").update(payload).eq("company_name", company_name).execute()
