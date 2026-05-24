@@ -475,7 +475,8 @@ function exportCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
-function parseCSVLine(line, sep) {
+function parseCSVLine(line, sep, maxCols) {
+  // Versuche zuerst mit Quote-Parsing
   var result = [];
   var current = '';
   var inQuotes = false;
@@ -487,6 +488,11 @@ function parseCSVLine(line, sep) {
     } else if (ch === sep && !inQuotes) {
       result.push(current.trim());
       current = '';
+      // Wenn maximale Spaltenanzahl erreicht, Rest als letztes Feld
+      if (maxCols && result.length >= maxCols - 1) {
+        current = line.slice(i + 1);
+        break;
+      }
     } else {
       current += ch;
     }
@@ -506,10 +512,11 @@ function importCSV(input) {
     var lines = text.split('\n').filter(function(l) { return l.trim(); });
     if (lines.length < 2) { alert('Keine Daten gefunden.'); return; }
     var sep = lines[0].includes(';') ? ';' : ',';
-    var headers = parseCSVLine(lines[0], sep).map(function(h) { return h.replace(/"/g,'').trim().toLowerCase(); });
+    var headers = parseCSVLine(lines[0], sep, 0).map(function(h) { return h.replace(/"/g,'').trim().toLowerCase(); });
+    var numCols = headers.length;
     var records = [];
     for (var i = 1; i < lines.length; i++) {
-      var vals = parseCSVLine(lines[i], sep);
+      var vals = parseCSVLine(lines[i], sep, numCols);
       var obj = {};
       for (var j = 0; j < headers.length; j++) { if (vals[j] !== undefined) obj[headers[j]] = vals[j]; }
       if (obj.company_name) records.push(obj);
