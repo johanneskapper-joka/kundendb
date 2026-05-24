@@ -496,7 +496,7 @@ function importCSV(input) {
     if (!confirm(records.length + ' Kontakte importieren?')) return;
     var success = 0; var failed = 0;
     var promises = records.map(function(rec) {
-      return fetch(BACKEND_URL + "/contacts/import", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) })
+      return fetch(BACKEND_URL + "/contacts/bulk-import", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) })
         .then(function(res) { if (res.ok) success++; else failed++; })
         .catch(function() { failed++; });
     });
