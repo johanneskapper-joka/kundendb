@@ -338,9 +338,19 @@ async def transcribe(request: Request):
 
         lang_code = "de" if lang == "de" else "fr" if lang == "fr" else "en"
 
+        # MIME-Typ korrekt setzen basierend auf Dateiendung
+        if filename.endswith('.mp4') or filename.endswith('.m4a'):
+            mime = "audio/mp4"
+        elif filename.endswith('.ogg') or filename.endswith('.oga'):
+            mime = "audio/ogg"
+        elif filename.endswith('.wav'):
+            mime = "audio/wav"
+        else:
+            mime = "audio/webm"
+
         transcript = await openai_client.audio.transcriptions.create(
             model="whisper-1",
-            file=(filename, audio_bytes, "audio/webm"),
+            file=(filename, audio_bytes, mime),
             language=lang_code,
             prompt=prompt
         )
