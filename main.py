@@ -417,6 +417,42 @@ async def get_contacts():
     result = supabase.table("contacts").select("*").order("company_name").execute()
     return result.data
 
+@app.post("/contacts/bulk-import")
+async def bulk_import_contact(request: Request):
+    try:
+        body = await request.json()
+        company_name = body.get("company_name", "").strip()
+        if not company_name:
+            return JSONResponse({"error": "company_name required"}, status_code=400)
+
+        existing = supabase.table("contacts").select("*").eq("company_name", company_name).execute()
+
+        payload = {
+            "company_name": company_name,
+            "contact_name": body.get("contact_name", ""),
+            "email": body.get("email", ""),
+            "phone": body.get("phone", ""),
+            "language": body.get("language", "de") or "de",
+            "status": body.get("status", "interessiert") or "interessiert",
+            "notes": body.get("notes", ""),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+
+        last_contact = body.get("last_contact", "")
+        if last_contact and last_contact.strip():
+            payload["last_contact"] = last_contact.strip()
+
+        if existing.data:
+            supabase.table("contacts").update(payload).eq("company_name", company_name).execute()
+        else:
+            supabase.table("contacts").insert(payload).execute()
+
+        return {"success": True}
+    except Exception as e:
+        print(f"Import error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.delete("/contacts/{contact_id}")
 async def delete_contact(contact_id: str):
     try:
@@ -435,40 +471,6 @@ async def update_contact(contact_id: str, request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-@app.post("/contacts/import")
-async def import_contact(request: Request):
-    try:
-        body = await request.json()
-        company_name = body.get("company_name", "").strip()
-        if not company_name:
-            return JSONResponse({"error": "company_name required"}, status_code=400)
-
-        # Prüfen ob Firma bereits existiert
-        existing = supabase.table("contacts").select("*").eq("company_name", company_name).execute()
-
-        payload = {
-            "company_name": company_name,
-            "contact_name": body.get("contact_name", ""),
-            "email": body.get("email", ""),
-            "phone": body.get("phone", ""),
-            "language": body.get("language", "de"),
-            "status": body.get("status", "interessiert"),
-            "notes": body.get("notes", ""),
-            "updated_at": datetime.utcnow().isoformat()
-        }
-
-        if body.get("last_contact"):
-            payload["last_contact"] = body.get("last_contact")
-
-        if existing.data:
-            supabase.table("contacts").update(payload).eq("company_name", company_name).execute()
-        else:
-            supabase.table("contacts").insert(payload).execute()
-
-        return {"success": True}
-    except Exception as e:
-        print(f"Import error: {e}")
-        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.get("/health")
