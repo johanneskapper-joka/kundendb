@@ -47,6 +47,7 @@ class ChatRequest(BaseModel):
     message: str
     language: str = "de"
     history: List[Message] = []
+    workspace_id: str = None
 
 def fuzzy_match_companies(text: str, contacts: list) -> str:
     """Ersetzt ähnlich klingende Firmennamen im Text durch die korrekten DB-Einträge."""
@@ -128,28 +129,30 @@ def similarity_score(a: str, b: str) -> float:
     return score
 
 
-SYSTEM_PROMPT = """Du bist ein intelligenter CRM-Assistent für ein kleines Team.
+BASE_SYSTEM_PROMPT = """Du bist ein intelligenter Assistent für ein kleines Team.
 Du führst echte Gespräche – du erinnerst dich an alles was in dieser Unterhaltung gesagt wurde, hakst nach, machst Vorschläge und denkst mit.
 
-Du hast Zugriff auf eine Kundendatenbank und kannst:
-- Neue Informationen zu Kunden erfassen und speichern
-- Bestehende Kundeninformationen abrufen und zusammenfassen
-- Zusammenhänge zwischen Kunden erkennen
+Du hast Zugriff auf eine Datenbank und kannst:
+- Neue Informationen erfassen und speichern
+- Bestehende Informationen abrufen und zusammenfassen
+- Zusammenhänge erkennen
 - Proaktiv Vorschläge machen
 - In der Sprache des Nutzers antworten (Deutsch, Französisch, Englisch)
 
-Felder: company_name, contact_name, email, phone, language, notes, last_contact, status (aktiv/interessiert/inaktiv)
+Kern-Felder: company_name, contact_name, email, phone, language, notes, last_contact, status (aktiv/interessiert/inaktiv)
+{custom_fields_info}
 
 Wenn der Nutzer neue Infos nennt, antworte IMMER mit einem JSON-Block:
 <db_action>
-{
+{{
   "action": "update" oder "create" oder "none",
   "company_name": "...",
   "contact_name": "...",
   "notes_append": "Neue Info",
   "status": "...",
-  "last_contact": "YYYY-MM-DD"
-}
+  "last_contact": "YYYY-MM-DD",
+  "custom_fields": {{}}
+}}
 </db_action>
 
 Antworte dann normal in der Sprache des Nutzers.
@@ -157,15 +160,44 @@ Antworte dann normal in der Sprache des Nutzers.
 WICHTIG für Antworten:
 - Maximal 2-3 Sätze – nie länger
 - Direkt zum Punkt, kein Vorgeplänkel
-- Beantworte NUR was gefragt wurde – niemals andere Firmen oder Themen einbringen
+- Beantworte NUR was gefragt wurde – niemals andere Einträge oder Themen einbringen
 - Nur was WIRKLICH in den Daten steht – niemals spekulieren oder Verbindungen erfinden
 - Wenn etwas nicht in den Daten steht: "Dazu habe ich keine Information"
 - Niemals Aktionen vorschlagen die nicht explizit angefragt wurden (kein Löschen, kein Statuswechsel)
-- Bei Datenabruf: Status + letzter Kontakt + 1 wichtige Notiz – fertig"""
+- Bei Datenabruf: Status + letzter Kontakt + 1 wichtige Notiz – fertig
+{extra_prompt}"""
+
+
+def build_system_prompt(workspace: dict = None) -> str:
+    custom_fields_info = ""
+    extra_prompt = ""
+    if workspace:
+        schema = workspace.get("field_schema") or []
+        if schema:
+            field_list = ", ".join([f"{f['key']} ({f['label']})" for f in schema])
+            custom_fields_info = f"\nZusatz-Felder dieses Workspace: {field_list}"
+        extra = workspace.get("system_prompt_extra", "")
+        if extra:
+            extra_prompt = f"\n\nWorkspace-Kontext: {extra}"
+    return BASE_SYSTEM_PROMPT.format(
+        custom_fields_info=custom_fields_info,
+        extra_prompt=extra_prompt
+    )
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    result = supabase.table("contacts").select("*").execute()
+    # Workspace laden für dynamischen Prompt und Custom-Felder
+    workspace = None
+    if req.workspace_id:
+        ws_result = supabase.table("workspaces").select("*").eq("id", req.workspace_id).execute()
+        if ws_result.data:
+            workspace = ws_result.data[0]
+
+    # Kontakte nach Workspace filtern
+    query = supabase.table("contacts").select("*")
+    if req.workspace_id:
+        query = query.eq("workspace_id", req.workspace_id)
+    result = query.execute()
     contacts = result.data
 
     contacts_text = "\n\n".join([
@@ -174,8 +206,11 @@ async def chat(req: ChatRequest):
         f"Status: {c.get('status','')}\n"
         f"Letzter Kontakt: {c.get('last_contact','')}\n"
         f"Notizen: {c.get('notes','')}"
+        + (f"\nZusatzfelder: {json.dumps(c.get('custom_fields') or {}, ensure_ascii=False)}" if c.get('custom_fields') else "")
         for c in contacts
-    ]) if contacts else "Noch keine Kontakte."
+    ]) if contacts else "Noch keine Einträge."
+
+    system_prompt = build_system_prompt(workspace)
 
     messages = []
     db_prefix = f"Kundendatenbank:\n{contacts_text}\n\n---\nNachricht ({req.language}): "
@@ -191,7 +226,7 @@ async def chat(req: ChatRequest):
     response = claude.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1000,
-        system=SYSTEM_PROMPT,
+        system=system_prompt,
         messages=messages
     )
 
@@ -204,15 +239,23 @@ async def chat(req: ChatRequest):
                 action_data = json.loads(match.group(1).strip())
                 action = action_data.get("action")
                 if action in ["create", "update"] and action_data.get("company_name"):
-                    existing = supabase.table("contacts").select("*").eq("company_name", action_data["company_name"]).execute()
+                    existing = supabase.table("contacts").select("*").eq("company_name", action_data["company_name"])
+                    if req.workspace_id:
+                        existing = existing.eq("workspace_id", req.workspace_id)
+                    existing = existing.execute()
                     update_payload = {
                         "company_name": action_data.get("company_name"),
                         "status": action_data.get("status"),
                         "last_contact": action_data.get("last_contact", datetime.today().strftime('%Y-%m-%d')),
                         "updated_at": datetime.utcnow().isoformat()
                     }
+                    if req.workspace_id:
+                        update_payload["workspace_id"] = req.workspace_id
                     if action_data.get("contact_name"):
                         update_payload["contact_name"] = action_data.get("contact_name")
+                    # Custom fields zusammenführen
+                    if action_data.get("custom_fields"):
+                        update_payload["custom_fields"] = action_data.get("custom_fields")
                     if existing.data:
                         old_notes = existing.data[0].get("notes", "") or ""
                         new_note = action_data.get("notes_append", "")
@@ -412,9 +455,17 @@ async def speak(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.get("/workspaces")
+async def get_workspaces():
+    result = supabase.table("workspaces").select("*").order("name").execute()
+    return result.data
+
 @app.get("/contacts")
-async def get_contacts():
-    result = supabase.table("contacts").select("*").order("company_name").execute()
+async def get_contacts(workspace_id: str = None):
+    query = supabase.table("contacts").select("*").order("company_name")
+    if workspace_id:
+        query = query.eq("workspace_id", workspace_id)
+    result = query.execute()
     return result.data
 
 @app.post("/contacts/bulk-import")
@@ -425,7 +476,11 @@ async def bulk_import_contact(request: Request):
         if not company_name:
             return JSONResponse({"error": "company_name required"}, status_code=400)
 
-        existing = supabase.table("contacts").select("*").eq("company_name", company_name).execute()
+        workspace_id = body.get("workspace_id")
+        query = supabase.table("contacts").select("*").eq("company_name", company_name)
+        if workspace_id:
+            query = query.eq("workspace_id", workspace_id)
+        existing = query.execute()
 
         def clean(val, default=""):
             v = body.get(val, "") or ""
@@ -435,8 +490,9 @@ async def bulk_import_contact(request: Request):
             "company_name": company_name,
             "updated_at": datetime.utcnow().isoformat()
         }
+        if workspace_id:
+            payload["workspace_id"] = workspace_id
 
-        # Nur nicht-leere Felder setzen
         if clean("contact_name"): payload["contact_name"] = clean("contact_name")
         if clean("email"): payload["email"] = clean("email")
         if clean("phone"): payload["phone"] = clean("phone")
@@ -446,7 +502,6 @@ async def bulk_import_contact(request: Request):
 
         last_contact = clean("last_contact")
         if last_contact:
-            # Datum konvertieren DD.MM.YYYY -> YYYY-MM-DD
             import re as re2
             dm = re2.match(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', last_contact)
             if dm:
