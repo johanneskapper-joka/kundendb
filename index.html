@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <!-- v4.0-velo -->
 <html lang="de">
+<link rel="manifest" href="/kundendb/manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Velo CRM" />
+<link rel="apple-touch-icon" href="/kundendb/icons/icon-192.png" />
+<meta name="theme-color" content="#0f0f13" />
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -204,6 +210,16 @@
   }
 </style>
 </head>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/kundendb/service-worker.js', { scope: '/kundendb/' })
+        .then((reg) => console.log('[PWA] Service Worker registriert:', reg.scope))
+        .catch((err) => console.warn('[PWA] Fehler:', err));
+    });
+  }
+</script>
 <body>
 
 <div class="modal-overlay" id="editModal">
