@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Velo CRM – Offline</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f0f13;
+      color: #e8e4dc;
+      font-family: 'Georgia', serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    .icon {
+      font-size: 4rem;
+      opacity: 0.4;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #c8b8a0;
+    }
+
+    p {
+      font-size: 0.95rem;
+      opacity: 0.6;
+      text-align: center;
+      line-height: 1.7;
+      max-width: 320px;
+    }
+
+    button {
+      background: none;
+      border: 1px solid rgba(200, 184, 160, 0.4);
+      color: #c8b8a0;
+      padding: 0.75rem 2rem;
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: rgba(200, 184, 160, 0.08);
+      border-color: rgba(200, 184, 160, 0.7);
+    }
+  </style>
+</head>
+<body>
+  <div class="icon">⚡</div>
+  <h1>Velo CRM</h1>
+  <p>Keine Internetverbindung. Bitte Netzwerk prüfen und erneut versuchen.</p>
+  <button onclick="location.reload()">Erneut versuchen</button>
+</body>
+</html>
