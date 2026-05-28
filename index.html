@@ -357,13 +357,19 @@ fetch(BACKEND_URL + "/workspaces").then(function(r) { return r.json(); }).then(f
 function renderWorkspaceOptions() {
   var container = document.getElementById('workspaceOptions');
   if (!allWorkspaces.length) { container.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--text-muted)">Keine Bereiche</div>'; return; }
+  // Workspace per ID nachschlagen – kein JSON im HTML-Attribut, keine Encoding-Probleme mit Umlauten
   container.innerHTML = allWorkspaces.map(function(w) {
-    return '<div class="workspace-option" id="wsOpt_' + w.id + '" onclick=\'selectWorkspace(' + JSON.stringify(w).replace(/'/g, "&#39;") + ', true)\'>' +
+    return '<div class="workspace-option" id="wsOpt_' + w.id + '" onclick="selectWorkspaceById(\'' + w.id + '\')">' +
       '<span class="ws-opt-icon">' + (w.icon || '&#x1F3E2;') + '</span>' +
       '<span class="ws-opt-name">' + w.name + '</span>' +
       '<span class="ws-opt-check" id="wsCheck_' + w.id + '" style="display:none">&#10003;</span>' +
       '</div>';
   }).join('');
+}
+
+function selectWorkspaceById(id) {
+  var ws = allWorkspaces.find(function(w) { return w.id === id; });
+  if (ws) selectWorkspace(ws, true);
 }
 
 function selectWorkspace(ws, closeDropdown) {
