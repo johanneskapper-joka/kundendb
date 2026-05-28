@@ -253,9 +253,13 @@ async def chat(req: ChatRequest):
                         update_payload["workspace_id"] = req.workspace_id
                     if action_data.get("contact_name"):
                         update_payload["contact_name"] = action_data.get("contact_name")
-                    # Custom fields zusammenführen
-                    if action_data.get("custom_fields"):
-                        update_payload["custom_fields"] = action_data.get("custom_fields")
+                  # Custom fields zusammenführen (bestehende Felder behalten)
+if action_data.get("custom_fields"):
+    existing_cf = {}
+    if existing.data:
+        existing_cf = existing.data[0].get("custom_fields") or {}
+    merged_cf = {**existing_cf, **action_data.get("custom_fields")}
+    update_payload["custom_fields"] = merged_cf
                     if existing.data:
                         old_notes = existing.data[0].get("notes", "") or ""
                         new_note = action_data.get("notes_append", "")
