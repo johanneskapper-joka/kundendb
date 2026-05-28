@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v4.1-velo-pwa -->
+<!-- v4.2-velo-custom-fields -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -23,8 +23,6 @@
     --surface2: #f0efe9;
     --border: #e2e0d8;
     --accent: #1a1a1a;
-    --accent2: #3d3d3d;
-    --soft: #6b6860;
     --text: #1a1a1a;
     --text-muted: #9a9890;
     --user-bubble: #1a1a1a;
@@ -38,37 +36,22 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
   html, body { height: 100%; }
-
   body {
     font-family: 'Geist', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding-top: var(--safe-top);
+    background: var(--bg); color: var(--text);
+    height: 100dvh; display: flex; flex-direction: column;
+    overflow: hidden; padding-top: var(--safe-top);
   }
 
   /* Header */
-  header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 24px; background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0; gap: 12px;
-  }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 12px; }
   .logo { display: flex; align-items: center; gap: 12px; }
-  .logo-mark {
-    width: 36px; height: 36px; background: var(--accent);
-    border-radius: 10px; display: flex; align-items: center; justify-content: center;
-  }
+  .logo-mark { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
   .logo-mark svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; }
-  .logo-name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; letter-spacing: -0.5px; color: var(--text); }
+  .logo-name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; letter-spacing: -0.5px; }
   .logo-name em { font-style: italic; }
   .logo-tag { font-size: 10px; font-weight: 500; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px; }
-
   .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
   .lang-selector { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -77,26 +60,15 @@
   .lang-btn:hover:not(.active) { color: var(--text); }
 
   .workspace-selector { position: relative; }
-  .workspace-btn {
-    padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); cursor: pointer; font-family: 'Geist', sans-serif;
-    font-size: 12px; font-weight: 500; transition: all 0.15s; display: flex; align-items: center;
-    gap: 6px; white-space: nowrap; max-width: 180px;
-  }
+  .workspace-btn { padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 500; transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; max-width: 180px; }
   .workspace-btn:hover { border-color: var(--accent); background: var(--surface); }
   .workspace-btn .ws-icon { font-size: 14px; flex-shrink: 0; }
   .workspace-btn .ws-name { overflow: hidden; text-overflow: ellipsis; }
   .workspace-btn .ws-caret { font-size: 9px; color: var(--text-muted); flex-shrink: 0; margin-left: 2px; }
-  .workspace-dropdown {
-    position: absolute; top: calc(100% + 6px); right: 0; min-width: 200px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-    box-shadow: var(--shadow-lg); z-index: 50; overflow: hidden; display: none;
-  }
+  .workspace-dropdown { position: absolute; top: calc(100% + 6px); right: 0; min-width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); z-index: 50; overflow: hidden; display: none; }
   .workspace-dropdown.open { display: block; }
-  .workspace-dropdown-header { padding: 8px 12px 6px; font-size: 10px; font-weight: 600;
-    letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); }
-  .workspace-option { padding: 8px 12px; display: flex; align-items: center; gap: 8px;
-    cursor: pointer; transition: background 0.1s; font-size: 13px; }
+  .workspace-dropdown-header { padding: 8px 12px 6px; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); }
+  .workspace-option { padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.1s; font-size: 13px; }
   .workspace-option:hover { background: var(--surface2); }
   .workspace-option.active { background: var(--surface2); font-weight: 500; }
   .workspace-option .ws-opt-icon { font-size: 15px; }
@@ -143,13 +115,16 @@
   /* Modal */
   .modal-overlay { position: fixed; inset: 0; background: rgba(26,26,26,0.4); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .modal-overlay.visible { opacity: 1; pointer-events: all; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); max-height: 90dvh; overflow-y: auto; }
-  .modal h3 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; margin-bottom: 20px; }
-  .modal-field { margin-bottom: 14px; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; width: 100%; max-width: 480px; box-shadow: var(--shadow-lg); max-height: 90dvh; overflow-y: auto; }
+  .modal h3 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; margin-bottom: 4px; }
+  .modal-workspace-label { font-size: 11px; color: var(--text-muted); margin-bottom: 18px; }
+  .modal-section-title { font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); padding: 14px 0 8px; border-top: 1px solid var(--border); margin-top: 4px; }
+  .modal-field { margin-bottom: 12px; }
   .modal-field label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
   .modal-field input, .modal-field textarea, .modal-field select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; color: var(--text); font-family: 'Geist', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s; }
   .modal-field input:focus, .modal-field textarea:focus, .modal-field select:focus { border-color: var(--accent); }
-  .modal-field textarea { resize: vertical; min-height: 80px; }
+  .modal-field textarea { resize: vertical; min-height: 70px; }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
   .btn-primary { flex: 1; padding: 10px; background: var(--accent); border: none; border-radius: 10px; color: #fff; font-family: 'Geist', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
   .btn-primary:hover { opacity: 0.85; }
@@ -161,7 +136,6 @@
   .messages { flex: 1; overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; -webkit-overflow-scrolling: touch; }
   .messages::-webkit-scrollbar { width: 3px; }
   .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
   .welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 24px; gap: 16px; }
   .welcome-mark { width: 64px; height: 64px; background: var(--accent); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
   .welcome-mark svg { width: 32px; height: 32px; fill: none; stroke: #fff; stroke-width: 1.5; stroke-linecap: round; }
@@ -170,7 +144,6 @@
   .suggestions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
   .suggestion { padding: 7px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow); }
   .suggestion:hover { border-color: var(--accent); color: var(--text); }
-
   .message { display: flex; gap: 10px; opacity: 0; animation: slideIn 0.25s ease forwards; }
   .message.user { flex-direction: row-reverse; align-self: flex-end; max-width: 80%; }
   .message.assistant { align-self: flex-start; max-width: 80%; }
@@ -188,25 +161,17 @@
   .speak-btn:hover { border-color: var(--accent); color: var(--text); }
   .speak-btn.speaking { background: var(--accent); border-color: var(--accent); color: #fff; }
   .speak-btn.loading { opacity: 0.5; cursor: wait; }
-
   .typing { display: flex; align-items: center; gap: 4px; padding: 12px 16px; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: var(--radius); border-top-left-radius: 5px; width: fit-content; box-shadow: var(--shadow); }
   .typing span { width: 5px; height: 5px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.2s infinite; }
   .typing span:nth-child(2) { animation-delay: 0.2s; }
   .typing span:nth-child(3) { animation-delay: 0.4s; }
 
   /* Input */
-  .input-area {
-    padding: 16px 24px 20px;
-    padding-bottom: calc(20px + var(--safe-bottom));
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    flex-shrink: 0;
-  }
+  .input-area { padding: 16px 24px 20px; padding-bottom: calc(20px + var(--safe-bottom)); border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
   .input-wrapper { display: flex; gap: 8px; align-items: flex-end; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 14px; padding: 10px 12px; transition: border-color 0.15s; }
   .input-wrapper:focus-within { border-color: var(--accent); background: var(--surface); }
   textarea { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: 'Geist', sans-serif; font-size: 14px; resize: none; max-height: 120px; line-height: 1.6; }
   textarea::placeholder { color: var(--text-muted); }
-
   .action-btn { width: 36px; height: 36px; border: none; border-radius: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
   .mic-btn { background: var(--surface); border: 1px solid var(--border) !important; color: var(--text-muted); font-size: 16px; }
   .mic-btn:hover { border-color: var(--accent) !important; color: var(--text); }
@@ -221,20 +186,10 @@
   @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-5px); opacity: 1; } }
 
-  /* Mobile */
   @media (max-width: 600px) {
     header { padding: 10px 14px; gap: 8px; }
     .logo-tag { display: none; }
-    .sidebar {
-      position: fixed;
-      top: 0; left: 0;
-      width: 85vw !important;
-      max-width: 320px;
-      height: 100dvh;
-      z-index: 20;
-      box-shadow: var(--shadow-lg);
-      padding-top: var(--safe-top);
-    }
+    .sidebar { position: fixed; top: 0; left: 0; width: 85vw !important; max-width: 320px; height: 100dvh; z-index: 20; box-shadow: var(--shadow-lg); padding-top: var(--safe-top); }
     .sidebar.hidden { width: 0 !important; opacity: 0; pointer-events: none; }
     .messages { padding: 14px 14px 10px; gap: 14px; }
     .message.user, .message.assistant { max-width: 92%; }
@@ -243,23 +198,27 @@
     .welcome { padding: 24px 16px; }
     .welcome h2 { font-size: 22px; }
     .input-hint { display: none; }
+    .modal-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
 
-<!-- Mobile Sidebar Overlay -->
 <div id="sidebarOverlay" style="display:none;position:fixed;inset:0;z-index:19;background:rgba(0,0,0,0.3);" onclick="toggleSidebar()"></div>
 
 <div class="modal-overlay" id="editModal">
   <div class="modal">
     <h3>Kontakt bearbeiten</h3>
+    <div class="modal-workspace-label" id="modalWorkspaceLabel"></div>
     <input type="hidden" id="editId">
-    <div class="modal-field"><label>Firma</label><input type="text" id="editCompany"></div>
-    <div class="modal-field"><label>Ansprechpartner</label><input type="text" id="editContact"></div>
-    <div class="modal-field"><label>E-Mail</label><input type="text" id="editEmail"></div>
-    <div class="modal-field"><label>Telefon</label><input type="text" id="editPhone"></div>
-    <div class="modal-field"><label>Status</label>
+    <div class="modal-grid">
+      <div class="modal-field"><label>Firma / Name</label><input type="text" id="editCompany"></div>
+      <div class="modal-field"><label>Ansprechpartner</label><input type="text" id="editContact"></div>
+      <div class="modal-field"><label>E-Mail</label><input type="text" id="editEmail"></div>
+      <div class="modal-field"><label>Telefon</label><input type="text" id="editPhone"></div>
+    </div>
+    <div class="modal-field">
+      <label>Status</label>
       <select id="editStatus">
         <option value="interessiert">Interessiert</option>
         <option value="aktiv">Aktiv</option>
@@ -267,6 +226,7 @@
       </select>
     </div>
     <div class="modal-field"><label>Notizen</label><textarea id="editNotes"></textarea></div>
+    <div id="customFieldsContainer"></div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">Abbrechen</button>
       <button class="btn-primary" onclick="saveContact()">Speichern</button>
@@ -287,9 +247,9 @@
   <div class="header-right">
     <div class="workspace-selector" id="workspaceSelector">
       <button class="workspace-btn" onclick="toggleWorkspaceDropdown(event)" id="workspaceBtn">
-        <span class="ws-icon" id="wsIcon">🏢</span>
-        <span class="ws-name" id="wsName">Wird geladen…</span>
-        <span class="ws-caret">▾</span>
+        <span class="ws-icon" id="wsIcon">&#x1F3E2;</span>
+        <span class="ws-name" id="wsName">Wird geladen&#x2026;</span>
+        <span class="ws-caret">&#x25BE;</span>
       </button>
       <div class="workspace-dropdown" id="workspaceDropdown">
         <div class="workspace-dropdown-header">Bereich wechseln</div>
@@ -341,24 +301,24 @@
           <svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg>
         </div>
         <h2>Guten Tag.</h2>
-        <p>Sprich oder schreib mit mir über deine Kunden. Ich merke mir alles und denke mit.</p>
+        <p>Sprich oder schreib mit mir. Ich merke mir alles und denke mit.</p>
         <div class="suggestions">
-          <div class="suggestion" onclick="useSuggestion(this)">Was weißt du über Müller GmbH?</div>
-          <div class="suggestion" onclick="useSuggestion(this)">Welche Kunden sind inaktiv?</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Was weisst du ueber Mueller GmbH?</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Welche Eintraege sind inaktiv?</div>
           <div class="suggestion" onclick="useSuggestion(this)">Trag ein: Schmidt AG hat heute angerufen</div>
-          <div class="suggestion" onclick="useSuggestion(this)">Qui sont mes clients intéressés?</div>
+          <div class="suggestion" onclick="useSuggestion(this)">Qui sont mes clients interesses?</div>
         </div>
       </div>
     </div>
     <div class="input-area">
       <div class="input-wrapper">
         <textarea id="messageInput" placeholder="Schreib oder sprich mit mir..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-        <button class="action-btn mic-btn" id="micBtn" title="Halten zum Sprechen" onmousedown="startMic()" onmouseup="stopMic()" onmouseleave="stopMic()" ontouchstart="startMic(event)" ontouchend="stopMic()">🎤</button>
+        <button class="action-btn mic-btn" id="micBtn" title="Halten zum Sprechen" onmousedown="startMic()" onmouseup="stopMic()" onmouseleave="stopMic()" ontouchstart="startMic(event)" ontouchend="stopMic()">&#x1F3A4;</button>
         <button class="action-btn send-btn" id="sendBtn" onclick="sendMessage()" title="Senden">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </div>
-      <div class="input-hint">Return zum Senden &middot; 🎤 halten zum Sprechen</div>
+      <div class="input-hint">Return zum Senden &middot; &#x1F3A4; halten zum Sprechen</div>
     </div>
   </div>
 </div>
@@ -383,28 +343,23 @@ var allWorkspaces = [];
 var currentWorkspace = null;
 
 var savedWsId = localStorage.getItem('velo_workspace_id');
-
 audioEl.volume = 0.5;
 fetch(BACKEND_URL + "/health").catch(function(){});
 
+// Workspaces laden
 fetch(BACKEND_URL + "/workspaces").then(function(r) { return r.json(); }).then(function(data) {
   allWorkspaces = data || [];
   renderWorkspaceOptions();
   var found = savedWsId && allWorkspaces.find(function(w) { return w.id === savedWsId; });
   selectWorkspace(found || allWorkspaces[0] || null, false);
-}).catch(function() {
-  document.getElementById('wsName').textContent = 'Kein Bereich';
-});
+}).catch(function() { document.getElementById('wsName').textContent = 'Kein Bereich'; });
 
 function renderWorkspaceOptions() {
   var container = document.getElementById('workspaceOptions');
-  if (!allWorkspaces.length) {
-    container.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--text-muted)">Keine Bereiche gefunden</div>';
-    return;
-  }
+  if (!allWorkspaces.length) { container.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--text-muted)">Keine Bereiche</div>'; return; }
   container.innerHTML = allWorkspaces.map(function(w) {
-    return '<div class="workspace-option" id="wsOpt_' + w.id + '" onclick="selectWorkspace(' + JSON.stringify(w).replace(/"/g,'&quot;') + ', true)">' +
-      '<span class="ws-opt-icon">' + (w.icon || '🏢') + '</span>' +
+    return '<div class="workspace-option" id="wsOpt_' + w.id + '" onclick=\'selectWorkspace(' + JSON.stringify(w).replace(/'/g, "&#39;") + ', true)\'>' +
+      '<span class="ws-opt-icon">' + (w.icon || '&#x1F3E2;') + '</span>' +
       '<span class="ws-opt-name">' + w.name + '</span>' +
       '<span class="ws-opt-check" id="wsCheck_' + w.id + '" style="display:none">&#10003;</span>' +
       '</div>';
@@ -415,7 +370,7 @@ function selectWorkspace(ws, closeDropdown) {
   currentWorkspace = ws;
   if (ws) {
     localStorage.setItem('velo_workspace_id', ws.id);
-    document.getElementById('wsIcon').textContent = ws.icon || '🏢';
+    document.getElementById('wsIcon').textContent = ws.icon || '&#x1F3E2;';
     document.getElementById('wsName').textContent = ws.name;
     document.querySelectorAll('.ws-opt-check').forEach(function(el) { el.style.display = 'none'; });
     document.querySelectorAll('.workspace-option').forEach(function(el) { el.classList.remove('active'); });
@@ -423,21 +378,15 @@ function selectWorkspace(ws, closeDropdown) {
     if (check) check.style.display = '';
     var opt = document.getElementById('wsOpt_' + ws.id);
     if (opt) opt.classList.add('active');
-    var hdr = document.getElementById('sidebarHeader');
-    if (hdr) hdr.textContent = ws.name;
+    document.getElementById('sidebarHeader').textContent = ws.name;
     clearHistory();
     if (sidebarVisible) loadContacts();
   }
   if (closeDropdown) document.getElementById('workspaceDropdown').classList.remove('open');
 }
 
-function toggleWorkspaceDropdown(e) {
-  e.stopPropagation();
-  document.getElementById('workspaceDropdown').classList.toggle('open');
-}
-document.addEventListener('click', function() {
-  document.getElementById('workspaceDropdown').classList.remove('open');
-});
+function toggleWorkspaceDropdown(e) { e.stopPropagation(); document.getElementById('workspaceDropdown').classList.toggle('open'); }
+document.addEventListener('click', function() { document.getElementById('workspaceDropdown').classList.remove('open'); });
 
 function unlockAudio() {
   if (audioUnlocked) return;
@@ -449,19 +398,16 @@ document.addEventListener('mousedown', unlockAudio, { once: true });
 
 function toggleSidebar() {
   sidebarVisible = !sidebarVisible;
-  var sidebar = document.getElementById('sidebar');
-  var overlay = document.getElementById('sidebarOverlay');
-  sidebar.classList.toggle('hidden', !sidebarVisible);
+  document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
   document.getElementById('sidebarToggle').classList.toggle('active', sidebarVisible);
-  if (window.innerWidth <= 600) {
-    overlay.style.display = sidebarVisible ? 'block' : 'none';
-  }
+  var overlay = document.getElementById('sidebarOverlay');
+  if (window.innerWidth <= 600) overlay.style.display = sidebarVisible ? 'block' : 'none';
   if (sidebarVisible) loadContacts();
 }
 
 function clearHistory() {
   conversationHistory = [];
-  document.getElementById('messages').innerHTML = '<div class="welcome" id="welcome"><div class="welcome-mark"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg></div><h2>Neues Gespräch.</h2><p>Womit kann ich dir helfen?</p></div>';
+  document.getElementById('messages').innerHTML = '<div class="welcome" id="welcome"><div class="welcome-mark"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg></div><h2>Neues Gespraech.</h2><p>Womit kann ich dir helfen?</p></div>';
 }
 
 function setLang(lang, btn) {
@@ -496,10 +442,8 @@ function addMessage(role, text) {
 }
 
 function showTyping() {
-  var div = document.createElement('div');
-  div.className = 'message assistant'; div.id = 'typing';
-  var aiAvatar = '<div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/></svg></div>';
-  div.innerHTML = aiAvatar + '<div class="typing"><span></span><span></span><span></span></div>';
+  var div = document.createElement('div'); div.className = 'message assistant'; div.id = 'typing';
+  div.innerHTML = '<div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/></svg></div><div class="typing"><span></span><span></span><span></span></div>';
   document.getElementById('messages').appendChild(div);
   document.getElementById('messages').scrollTop = 99999;
 }
@@ -507,18 +451,14 @@ function removeTyping() { var t = document.getElementById('typing'); if (t) t.re
 
 function sendMessage() {
   var input = document.getElementById('messageInput');
-  var text = input.value.trim();
-  if (!text) return;
+  var text = input.value.trim(); if (!text) return;
   document.getElementById('sendBtn').disabled = true;
   input.value = ''; input.style.height = 'auto';
   if (window.innerWidth <= 600 && sidebarVisible) toggleSidebar();
-  addMessage('user', text);
-  showTyping();
-  var wasVoice = voiceMode;
-  voiceMode = false;
+  addMessage('user', text); showTyping();
+  var wasVoice = voiceMode; voiceMode = false;
   fetch(BACKEND_URL + "/chat", {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: text, language: currentLang, history: conversationHistory, workspace_id: currentWorkspace ? currentWorkspace.id : null })
   }).then(function(res) { return res.json(); }).then(function(data) {
     removeTyping();
@@ -529,13 +469,8 @@ function sendMessage() {
     var msgDiv = addMessage('assistant', reply);
     if (wasVoice) { var btn = msgDiv.querySelector('.speak-btn'); if (btn) speakText(btn); }
     if (sidebarVisible) loadContacts();
-  }).catch(function() {
-    removeTyping();
-    addMessage('assistant', 'Verbindungsfehler – bitte erneut versuchen.');
-  }).finally(function() {
-    document.getElementById('sendBtn').disabled = false;
-    document.getElementById('messageInput').focus();
-  });
+  }).catch(function() { removeTyping(); addMessage('assistant', 'Verbindungsfehler - bitte erneut versuchen.'); })
+  .finally(function() { document.getElementById('sendBtn').disabled = false; document.getElementById('messageInput').focus(); });
 }
 
 function loadContacts() {
@@ -543,24 +478,22 @@ function loadContacts() {
   if (currentWorkspace) url += "?workspace_id=" + currentWorkspace.id;
   fetch(url).then(function(res) { return res.json(); }).then(function(data) {
     allContacts = data; renderContacts(allContacts);
-  }).catch(function() {
-    document.getElementById('contactsList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Nicht erreichbar</div>';
-  });
+  }).catch(function() { document.getElementById('contactsList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Nicht erreichbar</div>'; });
 }
 
 function renderContacts(contacts) {
   var list = document.getElementById('contactsList');
   if (!contacts || !contacts.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Keine Kontakte</div>'; return; }
   list.innerHTML = contacts.map(function(c) {
-    var name = (c.company_name || '').replace(/'/g, "\\'");
+    var name = (c.company_name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     var statusClass = (c.status || '').toLowerCase();
     return '<div class="contact-card"><div class="contact-top">' +
       '<div class="contact-info" onclick="askAbout(\'' + name + '\')">' +
-      '<div class="contact-company">' + (c.company_name || '–') + '</div>' +
+      '<div class="contact-company">' + (c.company_name || '-') + '</div>' +
       '<div class="contact-name">' + (c.contact_name || '') + '</div></div>' +
       '<div class="contact-actions always">' +
       '<button class="contact-action-btn" onclick="openEdit(\'' + c.id + '\')" title="Bearbeiten">&#9998;</button>' +
-      '<button class="contact-action-btn delete" onclick="deleteContact(\'' + c.id + '\', \'' + name + '\')" title="Löschen">&#10005;</button>' +
+      '<button class="contact-action-btn delete" onclick="deleteContact(\'' + c.id + '\', \'' + name + '\')" title="Loeschen">&#10005;</button>' +
       '</div></div>' +
       (c.status ? '<div class="contact-status ' + statusClass + '">' + c.status + '</div>' : '') +
       '</div>';
@@ -573,18 +506,78 @@ function filterContacts() {
 }
 
 function askAbout(company) {
-  var phrases = { de: 'Was weißt du über ' + company + '?', fr: 'Que sais-tu sur ' + company + '?', en: 'What do you know about ' + company + '?' };
+  var phrases = { de: 'Was weisst du ueber ' + company + '?', fr: 'Que sais-tu sur ' + company + '?', en: 'What do you know about ' + company + '?' };
   document.getElementById('messageInput').value = phrases[currentLang];
   if (window.innerWidth <= 600 && sidebarVisible) toggleSidebar();
   sendMessage();
 }
 
 function deleteContact(id, name) {
-  if (!confirm('"' + name + '" wirklich löschen?')) return;
+  if (!confirm('"' + name + '" wirklich loeschen?')) return;
   fetch(BACKEND_URL + "/contacts/" + id, { method: 'DELETE' }).then(function(res) {
     if (res.ok) { allContacts = allContacts.filter(function(c) { return c.id !== id; }); renderContacts(allContacts); }
-    else alert('Fehler beim Löschen.');
+    else alert('Fehler beim Loeschen.');
   }).catch(function() { alert('Verbindungsfehler.'); });
+}
+
+// ── Custom Fields Modal ────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getWorkspaceSchema() {
+  if (!currentWorkspace) return [];
+  return currentWorkspace.field_schema || [];
+}
+
+// Felder die als Textarea gerendert werden (weil oft langer Text)
+var LONG_FIELDS = ['notes_care', 'medication', 'allergies', 'deployment_times', 'diet'];
+
+function renderCustomFields(contact) {
+  var schema = getWorkspaceSchema();
+  var container = document.getElementById('customFieldsContainer');
+  var label = document.getElementById('modalWorkspaceLabel');
+
+  if (!schema || !schema.length) { container.innerHTML = ''; label.textContent = ''; return; }
+
+  label.textContent = (currentWorkspace.icon || '') + ' ' + currentWorkspace.name;
+  var existingValues = (contact && contact.custom_fields) ? contact.custom_fields : {};
+
+  var html = '<div class="modal-section-title">Workspace-Felder</div>';
+
+  // Kurze Felder gesammelt im Grid, lange einzeln
+  var shortFields = schema.filter(function(f) { return LONG_FIELDS.indexOf(f.key) === -1; });
+  var longFields  = schema.filter(function(f) { return LONG_FIELDS.indexOf(f.key) !== -1; });
+
+  if (shortFields.length) {
+    html += '<div class="modal-grid">';
+    shortFields.forEach(function(field) {
+      var val = escapeHtml(existingValues[field.key] || '');
+      html += '<div class="modal-field"><label>' + escapeHtml(field.label) + '</label>' +
+        '<input type="text" id="cf_' + field.key + '" value="' + val + '"></div>';
+    });
+    html += '</div>';
+  }
+
+  longFields.forEach(function(field) {
+    var val = escapeHtml(existingValues[field.key] || '');
+    html += '<div class="modal-field"><label>' + escapeHtml(field.label) + '</label>' +
+      '<textarea id="cf_' + field.key + '" rows="2">' + val + '</textarea></div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function collectCustomFields() {
+  var schema = getWorkspaceSchema();
+  if (!schema || !schema.length) return {};
+  var result = {};
+  schema.forEach(function(field) {
+    var el = document.getElementById('cf_' + field.key);
+    if (el && el.value.trim()) result[field.key] = el.value.trim();
+  });
+  return result;
 }
 
 function openEdit(id) {
@@ -597,9 +590,12 @@ function openEdit(id) {
   document.getElementById('editPhone').value = c.phone || '';
   document.getElementById('editStatus').value = c.status || 'interessiert';
   document.getElementById('editNotes').value = c.notes || '';
+  renderCustomFields(c);
   document.getElementById('editModal').classList.add('visible');
 }
+
 function closeModal() { document.getElementById('editModal').classList.remove('visible'); }
+
 function saveContact() {
   var id = document.getElementById('editId').value;
   var payload = {
@@ -608,26 +604,31 @@ function saveContact() {
     email: document.getElementById('editEmail').value,
     phone: document.getElementById('editPhone').value,
     status: document.getElementById('editStatus').value,
-    notes: document.getElementById('editNotes').value
+    notes: document.getElementById('editNotes').value,
+    custom_fields: collectCustomFields()
   };
   fetch(BACKEND_URL + "/contacts/" + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     .then(function(res) { if (res.ok) { closeModal(); loadContacts(); } else alert('Fehler beim Speichern.'); })
     .catch(function() { alert('Verbindungsfehler.'); });
 }
+
 document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+// ── CSV ────────────────────────────────────────────────────────────────────────
 
 function exportCSV() {
   if (!allContacts.length) { alert('Keine Kontakte.'); return; }
-  var fields = ['company_name','contact_name','email','phone','language','status','last_contact','notes'];
-  var rows = [fields.join(';')];
-  for (var i = 0; i < allContacts.length; i++) {
-    var c = allContacts[i]; var cols = [];
-    for (var j = 0; j < fields.length; j++) {
-      var val = String(c[fields[j]] || '').replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '');
-      cols.push('"' + val + '"');
-    }
+  var baseFields = ['company_name','contact_name','email','phone','language','status','last_contact','notes'];
+  var schema = getWorkspaceSchema();
+  var customKeys = schema.map(function(f) { return f.key; });
+  var headers = baseFields.concat(schema.map(function(f) { return f.label; }));
+  var rows = [headers.join(';')];
+  allContacts.forEach(function(c) {
+    var cf = c.custom_fields || {};
+    var cols = baseFields.map(function(f) { return '"' + String(c[f]||'').replace(/"/g,'""').replace(/\n/g,' ') + '"'; })
+      .concat(customKeys.map(function(k) { return '"' + String(cf[k]||'').replace(/"/g,'""').replace(/\n/g,' ') + '"'; }));
     rows.push(cols.join(';'));
-  }
+  });
   var blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a'); a.href = url; a.download = 'velo_' + new Date().toISOString().slice(0,10) + '.csv';
@@ -638,27 +639,21 @@ function parseCSVLine(line, sep, maxCols) {
   var result = []; var current = ''; var inQuotes = false;
   for (var i = 0; i < line.length; i++) {
     var ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
-      else { inQuotes = !inQuotes; }
-    } else if (ch === sep && !inQuotes) {
-      result.push(current.trim()); current = '';
-      if (maxCols && result.length >= maxCols - 1) { current = line.slice(i + 1); break; }
-    } else { current += ch; }
+    if (ch === '"') { if (inQuotes && line[i+1] === '"') { current += '"'; i++; } else { inQuotes = !inQuotes; } }
+    else if (ch === sep && !inQuotes) { result.push(current.trim()); current = ''; if (maxCols && result.length >= maxCols-1) { current = line.slice(i+1); break; } }
+    else { current += ch; }
   }
-  result.push(current.trim());
-  return result;
+  result.push(current.trim()); return result;
 }
 
 function importCSV(input) {
-  var file = input.files[0];
-  if (!file) return;
+  var file = input.files[0]; if (!file) return;
   var reader = new FileReader();
   reader.onload = function(e) {
     var text = e.target.result;
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
     var lines = text.split('\n').filter(function(l) { return l.trim(); });
-    if (lines.length < 2) { alert('Keine Daten gefunden.'); return; }
+    if (lines.length < 2) { alert('Keine Daten.'); return; }
     var sep = lines[0].includes(';') ? ';' : ',';
     var headers = parseCSVLine(lines[0], sep, 0).map(function(h) { return h.replace(/"/g,'').trim().toLowerCase(); });
     var records = [];
@@ -668,35 +663,26 @@ function importCSV(input) {
       for (var j = 0; j < headers.length; j++) { if (vals[j] !== undefined) obj[headers[j]] = vals[j]; }
       if (obj.company_name) records.push(obj);
     }
-    if (!records.length) { alert('Keine gültigen Einträge.'); return; }
+    if (!records.length) { alert('Keine gueltigen Eintraege.'); return; }
     if (!confirm(records.length + ' Kontakte importieren?')) return;
     var success = 0; var failed = 0;
     Promise.all(records.map(function(rec) {
       return fetch(BACKEND_URL + "/contacts/bulk-import", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, rec, { workspace_id: currentWorkspace ? currentWorkspace.id : null })) })
-        .then(function(res) { if (res.ok) success++; else failed++; })
-        .catch(function() { failed++; });
-    })).then(function() {
-      alert('Import: ' + success + ' erfolgreich, ' + failed + ' fehlgeschlagen.');
-      input.value = ''; loadContacts();
-    });
+        .then(function(res) { if (res.ok) success++; else failed++; }).catch(function() { failed++; });
+    })).then(function() { alert('Import: ' + success + ' erfolgreich, ' + failed + ' fehlgeschlagen.'); input.value = ''; loadContacts(); });
   };
   reader.readAsText(file, 'UTF-8');
 }
 
+// ── Mikrofon ──────────────────────────────────────────────────────────────────
+
 async function startMic(e) {
-  if (e) e.preventDefault();
-  if (micHeld) return;
-  if (currentAudio) {
-    audioEl.pause(); audioEl.src = ''; currentAudio = null;
-    if (activeSpeakBtn) { activeSpeakBtn.textContent = '\u25B6 Vorlesen'; activeSpeakBtn.classList.remove('speaking','loading'); activeSpeakBtn = null; }
-    await new Promise(function(r) { setTimeout(r, 200); });
-  }
+  if (e) e.preventDefault(); if (micHeld) return;
+  if (currentAudio) { audioEl.pause(); audioEl.src = ''; currentAudio = null; if (activeSpeakBtn) { activeSpeakBtn.textContent = '&#9654; Vorlesen'; activeSpeakBtn.classList.remove('speaking','loading'); activeSpeakBtn = null; } await new Promise(function(r){setTimeout(r,200);}); }
   try {
     var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     micHeld = true; audioChunks = [];
-    var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
-      MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
-      MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+    var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
     mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : {});
     mediaRecorder.ondataavailable = function(ev) { if (ev.data.size > 0) audioChunks.push(ev.data); };
     mediaRecorder.start(100);
@@ -706,42 +692,31 @@ async function startMic(e) {
 }
 
 async function stopMic() {
-  if (!micHeld || !mediaRecorder) return;
-  micHeld = false;
+  if (!micHeld || !mediaRecorder) return; micHeld = false;
   var btn = document.getElementById('micBtn');
   btn.classList.remove('recording'); btn.textContent = '\u2026'; btn.disabled = true;
-  mediaRecorder.stop();
-  mediaRecorder.stream.getTracks().forEach(function(t) { t.stop(); });
-  await new Promise(function(r) { mediaRecorder.onstop = r; });
+  mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(function(t){t.stop();});
+  await new Promise(function(r){mediaRecorder.onstop=r;});
   var mimeType = mediaRecorder.mimeType || 'audio/webm';
   var ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
   var blob = new Blob(audioChunks, { type: mimeType });
   mediaRecorder = null; audioChunks = [];
   if (blob.size < 1000) { btn.textContent = '\uD83C\uDF99'; btn.disabled = false; return; }
   try {
-    var companies = allContacts.map(function(c) { return c.company_name; }).filter(Boolean).join(', ');
+    var companies = allContacts.map(function(c){return c.company_name;}).filter(Boolean).join(', ');
     var formData = new FormData();
     formData.append('audio', blob, 'recording.' + ext);
     formData.append('language', currentLang);
     formData.append('companies', companies);
     var res = await fetch(BACKEND_URL + "/transcribe", { method: 'POST', body: formData });
     var data = await res.json();
-    var transcript = data.transcript || '';
-    if (transcript) {
-      document.getElementById('messageInput').value = transcript;
-      autoResize(document.getElementById('messageInput'));
-      voiceMode = true;
-      sendMessage();
-    }
+    if (data.transcript) { document.getElementById('messageInput').value = data.transcript; autoResize(document.getElementById('messageInput')); voiceMode = true; sendMessage(); }
   } catch(err) { console.error('Transcribe error:', err); }
   btn.textContent = '\uD83C\uDF99'; btn.disabled = false;
 }
 
 function stopAudio() {
-  if (currentAudio) {
-    audioEl.pause(); audioEl.src = ''; currentAudio = null;
-    if (activeSpeakBtn) { activeSpeakBtn.textContent = '\u25B6 Vorlesen'; activeSpeakBtn.classList.remove('speaking','loading'); activeSpeakBtn = null; }
-  }
+  if (currentAudio) { audioEl.pause(); audioEl.src = ''; currentAudio = null; if (activeSpeakBtn) { activeSpeakBtn.textContent = '\u25B6 Vorlesen'; activeSpeakBtn.classList.remove('speaking','loading'); activeSpeakBtn = null; } }
 }
 
 async function speakText(btn) {
@@ -751,8 +726,7 @@ async function speakText(btn) {
   try {
     var res = await fetch(BACKEND_URL + "/speak", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: text, language: currentLang }) });
     if (!res.ok) throw new Error();
-    var blob = await res.blob();
-    var url = URL.createObjectURL(blob);
+    var blob = await res.blob(); var url = URL.createObjectURL(blob);
     audioEl.src = url; audioEl.load();
     btn.textContent = '\u25A0 Stop'; btn.classList.remove('loading'); btn.classList.add('speaking'); currentAudio = audioEl;
     audioEl.onended = function() { btn.textContent = '\u25B6 Vorlesen'; btn.classList.remove('speaking'); currentAudio = null; activeSpeakBtn = null; URL.revokeObjectURL(url); };
@@ -761,12 +735,11 @@ async function speakText(btn) {
   } catch(ex) { btn.textContent = '\u25B6 Vorlesen'; btn.classList.remove('loading','speaking'); activeSpeakBtn = null; }
 }
 
-// PWA Service Worker
+// ── PWA ───────────────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker
-      .register('/kundendb/service-worker.js', { scope: '/kundendb/' })
-      .then(function(reg) { console.log('[PWA] Service Worker registriert:', reg.scope); })
+    navigator.serviceWorker.register('/kundendb/service-worker.js', { scope: '/kundendb/' })
+      .then(function(reg) { console.log('[PWA] SW registriert:', reg.scope); })
       .catch(function(err) { console.warn('[PWA] Fehler:', err); });
   });
 }
