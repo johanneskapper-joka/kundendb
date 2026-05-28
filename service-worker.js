@@ -1,7 +1,7 @@
 // Velo CRM – Service Worker
 // Strategie: Cache-First für App-Shell, Network-First für API-Calls
 
-const CACHE_NAME = 'velo-crm-v1';
+const CACHE_NAME = 'velo-crm-v2';
 const BACKEND_URL = 'https://kundendb.onrender.com';
 
 // App-Shell: diese Dateien werden beim Install gecacht
