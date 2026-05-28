@@ -63,7 +63,6 @@ def fuzzy_match_companies(text: str, contacts: list) -> str:
     i = 0
 
     while i < len(words):
-        # Versuche 1-4 Wörter als Firmenname zu matchen
         matched = False
         for length in range(min(4, len(words) - i), 0, -1):
             phrase = ' '.join(words[i:i+length])
@@ -79,7 +78,6 @@ def fuzzy_match_companies(text: str, contacts: list) -> str:
                     best_score = score
                     best_match = company
 
-            # Nur ersetzen wenn sehr ähnlich (>75%)
             if best_score > 0.75 and best_match:
                 result_words.append(best_match)
                 i += length
@@ -100,11 +98,9 @@ def similarity_score(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
 
-    # Enthält-Check
     if a in b or b in a:
         return 0.85
 
-    # Gemeinsame Zeichen
     longer = a if len(a) >= len(b) else b
     shorter = a if len(a) < len(b) else b
 
@@ -122,7 +118,6 @@ def similarity_score(a: str, b: str) -> float:
 
     score = (matches / len(shorter) + matches / len(longer)) / 2
 
-    # Bonus für gleichen Anfangsbuchstaben
     if a[0] == b[0]:
         score = min(1.0, score + 0.1)
 
@@ -148,12 +143,19 @@ Wenn der Nutzer neue Infos nennt, antworte IMMER mit einem JSON-Block:
   "action": "update" oder "create" oder "none",
   "company_name": "...",
   "contact_name": "...",
-  "notes_append": "Neue Info",
+  "notes_append": "Neue Info falls nicht in custom_fields abbildbar",
   "status": "...",
   "last_contact": "YYYY-MM-DD",
-  "custom_fields": {{}}
+  "custom_fields": {{
+    "key": "value"
+  }}
 }}
 </db_action>
+
+WICHTIG für custom_fields:
+- Nutze IMMER die definierten Workspace-Felder wenn die Information passt
+- Schreibe NUR dann in notes_append wenn die Info in keines der Workspace-Felder passt
+- Sende nur die Felder die sich tatsächlich geändert haben – bestehende Felder bleiben erhalten
 
 Antworte dann normal in der Sprache des Nutzers.
 
@@ -186,14 +188,12 @@ def build_system_prompt(workspace: dict = None) -> str:
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    # Workspace laden für dynamischen Prompt und Custom-Felder
     workspace = None
     if req.workspace_id:
         ws_result = supabase.table("workspaces").select("*").eq("id", req.workspace_id).execute()
         if ws_result.data:
             workspace = ws_result.data[0]
 
-    # Kontakte nach Workspace filtern
     query = supabase.table("contacts").select("*")
     if req.workspace_id:
         query = query.eq("workspace_id", req.workspace_id)
@@ -243,6 +243,7 @@ async def chat(req: ChatRequest):
                     if req.workspace_id:
                         existing = existing.eq("workspace_id", req.workspace_id)
                     existing = existing.execute()
+
                     update_payload = {
                         "company_name": action_data.get("company_name"),
                         "status": action_data.get("status"),
@@ -253,13 +254,15 @@ async def chat(req: ChatRequest):
                         update_payload["workspace_id"] = req.workspace_id
                     if action_data.get("contact_name"):
                         update_payload["contact_name"] = action_data.get("contact_name")
-                  # Custom fields zusammenführen (bestehende Felder behalten)
-if action_data.get("custom_fields"):
-    existing_cf = {}
-    if existing.data:
-        existing_cf = existing.data[0].get("custom_fields") or {}
-    merged_cf = {**existing_cf, **action_data.get("custom_fields")}
-    update_payload["custom_fields"] = merged_cf
+
+                    # Custom fields zusammenführen – bestehende Felder behalten
+                    if action_data.get("custom_fields"):
+                        existing_cf = {}
+                        if existing.data:
+                            existing_cf = existing.data[0].get("custom_fields") or {}
+                        merged_cf = {**existing_cf, **action_data.get("custom_fields")}
+                        update_payload["custom_fields"] = merged_cf
+
                     if existing.data:
                         old_notes = existing.data[0].get("notes", "") or ""
                         new_note = action_data.get("notes_append", "")
@@ -283,32 +286,27 @@ MONTHS_EN = ["January","February","March","April","May","June","July","August","
 def format_for_speech(text: str, lang: str) -> str:
     months = MONTHS_DE if lang == "de" else MONTHS_FR if lang == "fr" else MONTHS_EN
 
-    # Datum DD.MM.YYYY → z.B. "10. Mai 2026"
     def replace_date(m):
         d, mo, y = int(m.group(1)), int(m.group(2)), m.group(3)
         month = months[mo-1] if 1 <= mo <= 12 else m.group(2)
         return f"{d}. {month} {y}"
     text = re.sub(r'\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b', replace_date, text)
 
-    # Datum YYYY-MM-DD → z.B. "10. Mai 2026"
     def replace_iso(m):
         y, mo, d = m.group(1), int(m.group(2)), int(m.group(3))
         month = months[mo-1] if 1 <= mo <= 12 else m.group(2)
         return f"{d}. {month} {y}"
     text = re.sub(r'\b(\d{4})-(\d{2})-(\d{2})\b', replace_iso, text)
 
-    # Telefonnummern: +49 621 123456 → Ziffern mit Leerzeichen
     def replace_phone(m):
         digits = m.group(0).replace('+', '00').replace(' ', '').replace('-', '')
         return ' '.join(digits)
     text = re.sub(r'[+]?[\d][\d\s\-]{6,}', replace_phone, text)
 
-    # Währung: 8.000€ oder 8000€ → "achttausend Euro"
     text = re.sub(r'(\d+\.\d{3})€', lambda m: m.group(0).replace('.', '') + ' Euro', text)
     text = re.sub(r'(\d+)€', r'\1 Euro', text)
     text = re.sub(r'(\d+)\$', r'\1 Dollar', text)
 
-    # Jahreszahlen ausschreiben (2020-2029)
     def year_to_words_de(m):
         y = int(m.group(0))
         if 2000 <= y <= 2099:
@@ -373,7 +371,6 @@ async def transcribe(request: Request):
         audio_bytes = await audio_file.read()
         filename = audio_file.filename or "audio.webm"
 
-        # Firmenname-Hints für bessere Erkennung
         prompt = ""
         if companies:
             prompt = f"Firmen und Namen: {companies}. "
@@ -385,7 +382,6 @@ async def transcribe(request: Request):
 
         lang_code = "de" if lang == "de" else "fr" if lang == "fr" else "en"
 
-        # MIME-Typ korrekt setzen basierend auf Dateiendung
         if filename.endswith('.mp4') or filename.endswith('.m4a'):
             mime = "audio/mp4"
         elif filename.endswith('.ogg') or filename.endswith('.oga'):
@@ -541,7 +537,6 @@ async def update_contact(contact_id: str, request: Request):
         return {"success": True}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-
 
 
 @app.get("/health")
