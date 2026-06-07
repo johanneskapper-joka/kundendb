@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velo CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f11;
+    --surface: #1a1a1f;
+    --surface2: #222228;
+    --border: #2e2e36;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --text: #e8e8f0;
+    --text2: #888899;
+    --text3: #55556a;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 30% 20%, #1a1040 0%, var(--bg) 60%);
+  }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 48px 40px; width: 100%; max-width: 400px;
+    box-shadow: 0 0 60px rgba(108,99,255,0.08);
+  }
+  .login-logo { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .login-logo span { color: var(--accent2); }
+  .login-sub { color: var(--text2); font-size: 14px; margin-bottom: 36px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .field input, .field select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select option { background: var(--bg); }
+  .btn-primary {
+    width: 100%; background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius); padding: 13px; font-size: 15px; font-weight: 500;
+    cursor: pointer; transition: opacity 0.2s; margin-top: 8px;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .login-error { color: var(--red); font-size: 13px; margin-top: 12px; text-align: center; }
+
+  /* ── APP SHELL ── */
+  #app { display: none; flex-direction: column; min-height: 100vh; }
+
+  /* NAV */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 56px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-logo { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .nav-logo span { color: var(--accent2); }
+  .nav-center { display: flex; gap: 4px; }
+  .nav-btn {
+    background: none; border: none; color: var(--text2); padding: 8px 14px;
+    border-radius: 8px; cursor: pointer; font-size: 14px; font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+  .nav-btn:hover { background: var(--surface2); color: var(--text); }
+  .nav-btn.active { background: var(--surface2); color: var(--text); }
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .user-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 5px 12px 5px 8px; font-size: 13px;
+  }
+  .user-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: #fff;
+  }
+  .role-badge {
+    font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .role-admin { background: rgba(108,99,255,0.2); color: var(--accent2); }
+  .role-change { background: rgba(251,191,36,0.15); color: var(--yellow); }
+  .role-read { background: rgba(52,211,153,0.15); color: var(--green); }
+  .btn-logout {
+    background: none; border: 1px solid var(--border); color: var(--text2);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+  }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* MAIN */
+  main { flex: 1; padding: 28px 24px; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+  /* TABS */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* CONTACTS */
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .search-wrap { position: relative; flex: 1; min-width: 200px; }
+  .search-wrap input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 14px 10px 38px;
+    color: var(--text); font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 16px; }
+  .btn-sm {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius); padding: 9px 16px; cursor: pointer; font-size: 14px;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-accent:hover { opacity: 0.85; color: #fff; border-color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    text-align: left; padding: 10px 14px; color: var(--text3);
+    font-size: 11px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+  tbody tr:hover { background: var(--surface); }
+  tbody td { padding: 13px 14px; color: var(--text); }
+  .status-dot {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-aktiv { background: var(--green); }
+  .dot-interessiert { background: var(--yellow); }
+  .dot-inaktiv { background: var(--text3); }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-state .big { font-size: 40px; margin-bottom: 12px; }
+
+  /* CHAT */
+  .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 140px); }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px 0; display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg { max-width: 75%; padding: 12px 16px; border-radius: 14px; font-size: 14px; line-height: 1.5; }
+  .msg-user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+  .msg-ai { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .chat-input-row {
+    display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border); align-items: flex-end;
+  }
+  .chat-input-row textarea {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; color: var(--text);
+    font-size: 14px; font-family: 'DM Sans', sans-serif; resize: none; outline: none;
+    transition: border-color 0.2s; min-height: 48px; max-height: 120px;
+  }
+  .chat-input-row textarea:focus { border-color: var(--accent); }
+  .mic-btn {
+    width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text2); cursor: pointer; font-size: 20px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
+  }
+  .mic-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mic-btn.recording { background: var(--red); border-color: var(--red); color: #fff; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .send-btn {
+    height: 48px; padding: 0 20px; background: var(--accent); border: none; border-radius: var(--radius);
+    color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.2s; flex-shrink: 0;
+  }
+  .send-btn:hover { opacity: 0.85; }
+  .lang-select {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); padding: 0 12px; height: 48px; font-size: 14px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; outline: none;
+  }
+
+  /* ADMIN */
+  .section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-header h3 { font-size: 15px; font-weight: 500; }
+
+  /* MODAL */
+  .modal-bg {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 200; align-items: center; justify-content: center;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 32px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 24px; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  .btn-cancel {
+    background: none; border: 1px solid var(--border); color: var(--text2);
+    border-radius: var(--radius); padding: 10px 18px; cursor: pointer;
+    font-size: 14px; font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+  }
+  .btn-cancel:hover { border-color: var(--text2); color: var(--text); }
+  .btn-danger {
+    background: rgba(248,113,113,0.1); border: 1px solid var(--red); color: var(--red);
+    border-radius: var(--radius); padding: 10px 18px; cursor: pointer;
+    font-size: 14px; font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+  }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 18px; font-size: 14px; opacity: 0; transform: translateY(8px);
+    transition: all 0.25s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+
+  .workspace-label {
+    font-size: 12px; color: var(--text3); display: flex; align-items: center; gap: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">velo<span>.</span></div>
+    <div class="login-sub">Bitte melde dich an</div>
+    <div class="field">
+      <label>E-Mail</label>
+      <input type="email" id="login-email" placeholder="name@firma.de" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Passwort</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Anmelden</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav>
+    <div class="nav-logo">velo<span>.</span></div>
+    <div class="nav-center">
+      <button class="nav-btn active" onclick="showTab('contacts', this)">Kontakte</button>
+      <button class="nav-btn" onclick="showTab('chat', this)">Chat</button>
+      <button class="nav-btn admin-only" onclick="showTab('admin', this)" style="display:none">Admin</button>
+    </div>
+    <div class="nav-right">
+      <div class="workspace-label" id="nav-workspace"></div>
+      <div class="user-chip">
+        <div class="user-avatar" id="nav-avatar">?</div>
+        <span id="nav-name"></span>
+        <span class="role-badge" id="nav-role"></span>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">Abmelden</button>
+    </div>
+  </nav>
+
+  <main>
+    <!-- CONTACTS TAB -->
+    <div id="tab-contacts" class="tab-panel active">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Suchen …" oninput="renderContacts()">
+        </div>
+        <button class="btn-sm btn-accent change-only" onclick="openNewContact()" style="display:none">+ Neu</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Ansprechpartner</th>
+              <th>Status</th>
+              <th>Letzter Kontakt</th>
+              <th>Telefon</th>
+            </tr>
+          </thead>
+          <tbody id="contacts-body"></tbody>
+        </table>
+        <div id="contacts-empty" class="empty-state" style="display:none">
+          <div class="big">📋</div>
+          <div>Noch keine Kontakte</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT TAB -->
+    <div id="tab-chat" class="tab-panel">
+      <div class="chat-wrap">
+        <div class="chat-messages" id="chat-messages">
+          <div class="msg msg-ai">Hallo! Wie kann ich dir helfen? 👋</div>
+        </div>
+        <div class="chat-input-row">
+          <select class="lang-select" id="lang-select">
+            <option value="de">🇩🇪</option>
+            <option value="fr">🇫🇷</option>
+            <option value="en">🇬🇧</option>
+          </select>
+          <textarea id="chat-input" placeholder="Nachricht …" rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+          <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+          <button class="send-btn change-only" onclick="sendChat()" style="display:none">Senden</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN TAB -->
+    <div id="tab-admin" class="tab-panel">
+      <div class="section-title">Benutzerverwaltung</div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Alle Benutzer</h3>
+          <button class="btn-sm btn-accent" onclick="openUserModal()">+ Benutzer anlegen</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>E-Mail</th>
+              <th>Rolle</th>
+              <th>Workspace</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- CONTACT MODAL -->
+<div class="modal-bg" id="contact-modal">
+  <div class="modal">
+    <h2 id="contact-modal-title">Kontakt</h2>
+    <div class="field"><label>Firmenname *</label><input id="c-company" type="text"></div>
+    <div class="field"><label>Ansprechpartner</label><input id="c-contact" type="text"></div>
+    <div class="field"><label>E-Mail</label><input id="c-email" type="email"></div>
+    <div class="field"><label>Telefon</label><input id="c-phone" type="tel"></div>
+    <div class="field">
+      <label>Status</label>
+      <select id="c-status">
+        <option value="">– wählen –</option>
+        <option value="aktiv">Aktiv</option>
+        <option value="interessiert">Interessiert</option>
+        <option value="inaktiv">Inaktiv</option>
+      </select>
+    </div>
+    <div class="field"><label>Notizen</label><input id="c-notes" type="text"></div>
+    <div class="modal-footer">
+      <button class="btn-danger" id="c-delete-btn" onclick="deleteContact()" style="display:none">Löschen</button>
+      <button class="btn-cancel" onclick="closeModal('contact-modal')">Abbrechen</button>
+      <button class="btn-primary" style="width:auto;margin-top:0" onclick="saveContact()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div class="modal-bg" id="user-modal">
+  <div class="modal">
+    <h2 id="user-modal-title">Benutzer anlegen</h2>
+    <div class="field"><label>Name</label><input id="u-name" type="text"></div>
+    <div class="field"><label>E-Mail *</label><input id="u-email" type="email"></div>
+    <div class="field"><label>Passwort</label><input id="u-password" type="password" placeholder="Leer lassen = nicht ändern"></div>
+    <div class="field">
+      <label>Rolle</label>
+      <select id="u-role">
+        <option value="read">Read – nur lesen</option>
+        <option value="change">Change – anlegen & bearbeiten</option>
+        <option value="admin">Admin – alles</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Workspace</label>
+      <select id="u-workspace">
+        <option value="">– kein / alle –</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select id="u-active">
+        <option value="true">Aktiv</option>
+        <option value="false">Inaktiv</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-danger" id="u-delete-btn" onclick="deleteUser()" style="display:none">Löschen</button>
+      <button class="btn-cancel" onclick="closeModal('user-modal')">Abbrechen</button>
+      <button class="btn-primary" style="width:auto;margin-top:0" onclick="saveUser()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = 'https://kundendb.onrender.com';
+let token = localStorage.getItem('velo_token');
+let session = null;
+let contacts = [];
+let workspaces = [];
+let editContactId = null;
+let editUserId = null;
+let chatHistory = [];
+let mediaRecorder = null;
+let isRecording = false;
+let audioChunks = [];
+
+// ── AUTH ──
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const err = document.getElementById('login-error');
+  err.textContent = '';
+  try {
+    const r = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    if (!r.ok) { err.textContent = 'Ungültige Zugangsdaten.'; return; }
+    const data = await r.json();
+    token = data.token;
+    localStorage.setItem('velo_token', token);
+    session = data;
+    startApp();
+  } catch(e) { err.textContent = 'Verbindungsfehler.'; }
+}
+
+async function checkSession() {
+  if (!token) return false;
+  try {
+    const r = await fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) return false;
+    session = await r.json();
+    return true;
+  } catch { return false; }
+}
+
+async function doLogout() {
+  await fetch(`${API}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+  localStorage.removeItem('velo_token');
+  token = null; session = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ── START APP ──
+async function startApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // Nav
+  const av = document.getElementById('nav-avatar');
+  av.textContent = (session.full_name || session.email || '?')[0].toUpperCase();
+  document.getElementById('nav-name').textContent = session.full_name || session.email;
+  const roleEl = document.getElementById('nav-role');
+  roleEl.textContent = session.role;
+  roleEl.className = `role-badge role-${session.role}`;
+
+  // Workspace label
+  if (session.workspace) {
+    document.getElementById('nav-workspace').innerHTML =
+      `${session.workspace.icon || ''} ${session.workspace.name}`;
+  }
+
+  // Role-based UI
+  const isAdmin = session.role === 'admin';
+  const canChange = session.role === 'admin' || session.role === 'change';
+  document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
+  document.querySelectorAll('.change-only').forEach(el => el.style.display = canChange ? '' : 'none');
+
+  // Load data
+  await loadWorkspaces();
+  await loadContacts();
+  if (isAdmin) await loadUsers();
+}
+
+// ── WORKSPACES ──
+async function loadWorkspaces() {
+  try {
+    const r = await fetch(`${API}/workspaces`, { headers: { Authorization: `Bearer ${token}` } });
+    workspaces = await r.json();
+    const sel = document.getElementById('u-workspace');
+    workspaces.forEach(ws => {
+      const o = document.createElement('option');
+      o.value = ws.id; o.textContent = `${ws.icon || ''} ${ws.name}`;
+      sel.appendChild(o);
+    });
+  } catch {}
+}
+
+// ── CONTACTS ──
+async function loadContacts() {
+  try {
+    let url = `${API}/contacts`;
+    if (session.workspace_id) url += `?workspace_id=${session.workspace_id}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    contacts = await r.json();
+    renderContacts();
+  } catch {}
+}
+
+function renderContacts() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filtered = contacts.filter(c =>
+    (c.company_name||'').toLowerCase().includes(q) ||
+    (c.contact_name||'').toLowerCase().includes(q) ||
+    (c.phone||'').includes(q)
+  );
+  const tbody = document.getElementById('contacts-body');
+  tbody.innerHTML = '';
+  document.getElementById('contacts-empty').style.display = filtered.length ? 'none' : 'block';
+  filtered.forEach(c => {
+    const tr = document.createElement('tr');
+    const statusDot = c.status === 'aktiv' ? 'dot-aktiv' : c.status === 'interessiert' ? 'dot-interessiert' : 'dot-inaktiv';
+    tr.innerHTML = `
+      <td><strong>${c.company_name||''}</strong></td>
+      <td>${c.contact_name||'–'}</td>
+      <td><span class="status-dot"><span class="dot ${statusDot}"></span>${c.status||'–'}</span></td>
+      <td>${c.last_contact ? new Date(c.last_contact).toLocaleDateString('de-DE') : '–'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:13px">${c.phone||'–'}</td>`;
+    tr.onclick = () => openContactModal(c);
+    tbody.appendChild(tr);
+  });
+}
+
+function openNewContact() {
+  editContactId = null;
+  document.getElementById('contact-modal-title').textContent = 'Neuer Kontakt';
+  ['c-company','c-contact','c-email','c-phone','c-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('c-status').value = '';
+  document.getElementById('c-delete-btn').style.display = 'none';
+  document.getElementById('contact-modal').classList.add('open');
+}
+
+function openContactModal(c) {
+  editContactId = c.id;
+  document.getElementById('contact-modal-title').textContent = c.company_name;
+  document.getElementById('c-company').value = c.company_name || '';
+  document.getElementById('c-contact').value = c.contact_name || '';
+  document.getElementById('c-email').value = c.email || '';
+  document.getElementById('c-phone').value = c.phone || '';
+  document.getElementById('c-status').value = c.status || '';
+  document.getElementById('c-notes').value = c.notes || '';
+  const canDelete = session.role === 'admin';
+  const canChange = session.role !== 'read';
+  document.getElementById('c-delete-btn').style.display = canDelete ? '' : 'none';
+  ['c-company','c-contact','c-email','c-phone','c-status','c-notes'].forEach(id => {
+    document.getElementById(id).disabled = !canChange;
+  });
+  document.querySelector('#contact-modal .btn-primary').style.display = canChange ? '' : 'none';
+  document.getElementById('contact-modal').classList.add('open');
+}
+
+async function saveContact() {
+  const payload = {
+    company_name: document.getElementById('c-company').value.trim(),
+    contact_name: document.getElementById('c-contact').value.trim(),
+    email: document.getElementById('c-email').value.trim(),
+    phone: document.getElementById('c-phone').value.trim(),
+    status: document.getElementById('c-status').value,
+    notes: document.getElementById('c-notes').value.trim(),
+  };
+  if (!payload.company_name) { showToast('Firmenname ist Pflichtfeld', 'error'); return; }
+  try {
+    if (editContactId) {
+      await fetch(`${API}/contacts/${editContactId}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+        body: JSON.stringify(payload)
+      });
+    } else {
+      payload.workspace_id = session.workspace_id;
+      await fetch(`${API}/contacts`, {
+        method: 'POST', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+        body: JSON.stringify(payload)
+      });
+    }
+    closeModal('contact-modal');
+    showToast('Gespeichert ✓', 'success');
+    await loadContacts();
+  } catch { showToast('Fehler beim Speichern', 'error'); }
+}
+
+async function deleteContact() {
+  if (!confirm('Kontakt wirklich löschen?')) return;
+  await fetch(`${API}/contacts/${editContactId}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
+  });
+  closeModal('contact-modal');
+  showToast('Gelöscht', 'success');
+  await loadContacts();
+}
+
+// ── CHAT ──
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = ''; input.style.height = 'auto';
+  addMsg(msg, 'user');
+  chatHistory.push({ role: 'user', content: msg });
+  try {
+    const r = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+      body: JSON.stringify({
+        message: msg,
+        language: document.getElementById('lang-select').value,
+        history: chatHistory.slice(-10),
+        workspace_id: session.workspace_id
+      })
+    });
+    const data = await r.json();
+    addMsg(data.reply, 'ai');
+    chatHistory.push({ role: 'assistant', content: data.reply });
+    await loadContacts();
+  } catch { addMsg('Verbindungsfehler.', 'ai'); }
+}
+
+function addMsg(text, role) {
+  const div = document.createElement('div');
+  div.className = `msg msg-${role}`;
+  div.textContent = text;
+  const container = document.getElementById('chat-messages');
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function toggleMic() {
+  if (isRecording) {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      const form = new FormData();
+      form.append('audio', blob, 'audio.webm');
+      form.append('language', document.getElementById('lang-select').value);
+      const r = await fetch(`${API}/transcribe`, { method: 'POST', body: form, headers: { Authorization: `Bearer ${token}` } });
+      const data = await r.json();
+      if (data.transcript) {
+        document.getElementById('chat-input').value = data.transcript;
+        sendChat();
+      }
+      stream.getTracks().forEach(t => t.stop());
+      isRecording = false;
+      document.getElementById('mic-btn').classList.remove('recording');
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    document.getElementById('mic-btn').classList.add('recording');
+  } catch { showToast('Mikrofon nicht verfügbar', 'error'); }
+}
+
+// ── USERS (ADMIN) ──
+async function loadUsers() {
+  try {
+    const r = await fetch(`${API}/users`, { headers: { Authorization: `Bearer ${token}` } });
+    const users = await r.json();
+    const tbody = document.getElementById('users-body');
+    tbody.innerHTML = '';
+    users.forEach(u => {
+      const ws = workspaces.find(w => w.id === u.workspace_id);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${u.full_name || '–'}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:13px">${u.email}</td>
+        <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+        <td>${ws ? `${ws.icon||''} ${ws.name}` : '–'}</td>
+        <td><span class="status-dot"><span class="dot ${u.is_active ? 'dot-aktiv' : 'dot-inaktiv'}"></span>${u.is_active ? 'Aktiv' : 'Inaktiv'}</span></td>
+        <td><button class="btn-sm" onclick="openUserModal(${JSON.stringify(u).split('"').join("'")})">Bearbeiten</button></td>`;
+      tbody.appendChild(tr);
+    });
+  } catch {}
+}
+
+function openUserModal(u) {
+  editUserId = u ? u.id : null;
+  document.getElementById('user-modal-title').textContent = u ? 'Benutzer bearbeiten' : 'Benutzer anlegen';
+  document.getElementById('u-name').value = u ? (u.full_name||'') : '';
+  document.getElementById('u-email').value = u ? u.email : '';
+  document.getElementById('u-password').value = '';
+  document.getElementById('u-role').value = u ? u.role : 'read';
+  document.getElementById('u-workspace').value = u ? (u.workspace_id||'') : '';
+  document.getElementById('u-active').value = u ? String(u.is_active) : 'true';
+  document.getElementById('u-delete-btn').style.display = u && u.id !== session.user_id ? '' : 'none';
+  document.getElementById('user-modal').classList.add('open');
+}
+
+async function saveUser() {
+  const payload = {
+    full_name: document.getElementById('u-name').value.trim(),
+    email: document.getElementById('u-email').value.trim(),
+    role: document.getElementById('u-role').value,
+    workspace_id: document.getElementById('u-workspace').value || null,
+    is_active: document.getElementById('u-active').value === 'true',
+  };
+  const pw = document.getElementById('u-password').value;
+  if (pw) payload.password = pw;
+  if (!payload.email) { showToast('E-Mail ist Pflichtfeld', 'error'); return; }
+  try {
+    if (editUserId) {
+      await fetch(`${API}/users/${editUserId}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+        body: JSON.stringify(payload)
+      });
+    } else {
+      if (!pw) { showToast('Passwort ist Pflichtfeld', 'error'); return; }
+      await fetch(`${API}/users`, {
+        method: 'POST', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+        body: JSON.stringify(payload)
+      });
+    }
+    closeModal('user-modal');
+    showToast('Gespeichert ✓', 'success');
+    await loadUsers();
+  } catch { showToast('Fehler', 'error'); }
+}
+
+async function deleteUser() {
+  if (!confirm('Benutzer wirklich löschen?')) return;
+  await fetch(`${API}/users/${editUserId}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
+  });
+  closeModal('user-modal');
+  showToast('Gelöscht', 'success');
+  await loadUsers();
+}
+
+// ── UI HELPERS ──
+function showTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  btn.classList.add('active');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `show ${type}`;
+  setTimeout(() => t.className = '', 2500);
+}
+
+// ── INIT ──
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+(async () => {
+  if (token && await checkSession()) {
+    startApp();
+  }
+})();
+</script>
+</body>
+</html>
