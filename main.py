@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse, Response
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from supabase import create_client
 import anthropic
@@ -7,7 +7,9 @@ import os
 import re
 import json
 import httpx
-from datetime import datetime
+import hashlib
+import secrets
+from datetime import datetime, timedelta
 from typing import List
 import openai
 
@@ -39,71 +41,193 @@ VOICE_IDS = {
     "en": "Gfpl8Yo74Is0W6cPUWWT",
 }
 
-class Message(BaseModel):
-    role: str
-    content: str
+# ─────────────────────────────────────────
+# AUTH – Sessions (in-memory)
+# ─────────────────────────────────────────
 
-class ChatRequest(BaseModel):
-    message: str
-    language: str = "de"
-    history: List[Message] = []
-    workspace_id: str = None
+active_sessions = {}
+
+@app.post("/auth/login")
+async def login(request: Request):
+    body = await request.json()
+    email = body.get("email", "").lower().strip()
+    password = body.get("password", "")
+
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="E-Mail und Passwort erforderlich")
+
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+    result = supabase.table("users")\
+        .select("*, workspaces(*)")\
+        .eq("email", email)\
+        .eq("password_hash", password_hash)\
+        .eq("is_active", True)\
+        .execute()
+
+    if not result.data:
+        raise HTTPException(status_code=401, detail="Ungültige Zugangsdaten")
+
+    user = result.data[0]
+    token = secrets.token_hex(32)
+    active_sessions[token] = {
+        "user_id": user["id"],
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "workspace_id": user["workspace_id"],
+        "workspace": user.get("workspaces"),
+        "expires": datetime.now() + timedelta(hours=8)
+    }
+
+    return {
+        "token": token,
+        "role": user["role"],
+        "full_name": user["full_name"],
+        "workspace_id": user["workspace_id"],
+        "workspace": user.get("workspaces")
+    }
+
+@app.post("/auth/logout")
+async def logout(request: Request):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    active_sessions.pop(token, None)
+    return {"status": "ok"}
+
+@app.get("/auth/me")
+async def get_me(request: Request):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if not session or session["expires"] < datetime.now():
+        raise HTTPException(status_code=401, detail="Nicht eingeloggt")
+    return session
+
+# ─────────────────────────────────────────
+# USER MANAGEMENT (nur Admin)
+# ─────────────────────────────────────────
+
+def get_session(request: Request):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if not session or session["expires"] < datetime.now():
+        raise HTTPException(status_code=401, detail="Nicht eingeloggt")
+    return session
+
+@app.get("/users")
+async def get_users(request: Request):
+    session = get_session(request)
+    if session["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+    result = supabase.table("users").select("id, email, full_name, role, workspace_id, is_active, created_at").execute()
+    return result.data
+
+@app.post("/users")
+async def create_user(request: Request):
+    session = get_session(request)
+    if session["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+
+    body = await request.json()
+    email = body.get("email", "").lower().strip()
+    password = body.get("password", "")
+    full_name = body.get("full_name", "")
+    role = body.get("role", "read")
+    workspace_id = body.get("workspace_id") or None
+
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="E-Mail und Passwort erforderlich")
+    if role not in ["admin", "change", "read"]:
+        raise HTTPException(status_code=400, detail="Ungültige Rolle")
+
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+    try:
+        result = supabase.table("users").insert({
+            "email": email,
+            "password_hash": password_hash,
+            "full_name": full_name,
+            "role": role,
+            "workspace_id": workspace_id,
+            "is_active": True
+        }).execute()
+        return {"success": True, "user": result.data[0]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Fehler: {str(e)}")
+
+@app.put("/users/{user_id}")
+async def update_user(user_id: str, request: Request):
+    session = get_session(request)
+    if session["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+
+    body = await request.json()
+    payload = {}
+
+    if "full_name" in body: payload["full_name"] = body["full_name"]
+    if "role" in body:
+        if body["role"] not in ["admin", "change", "read"]:
+            raise HTTPException(status_code=400, detail="Ungültige Rolle")
+        payload["role"] = body["role"]
+    if "workspace_id" in body: payload["workspace_id"] = body["workspace_id"] or None
+    if "is_active" in body: payload["is_active"] = body["is_active"]
+    if "password" in body and body["password"]:
+        payload["password_hash"] = hashlib.sha256(body["password"].encode()).hexdigest()
+
+    supabase.table("users").update(payload).eq("id", user_id).execute()
+    return {"success": True}
+
+@app.delete("/users/{user_id}")
+async def delete_user(user_id: str, request: Request):
+    session = get_session(request)
+    if session["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+    if session["user_id"] == user_id:
+        raise HTTPException(status_code=400, detail="Du kannst dich nicht selbst löschen")
+    supabase.table("users").delete().eq("id", user_id).execute()
+    return {"success": True}
+
+# ─────────────────────────────────────────
+# FUZZY MATCH
+# ─────────────────────────────────────────
 
 def fuzzy_match_companies(text: str, contacts: list) -> str:
-    """Ersetzt ähnlich klingende Firmennamen im Text durch die korrekten DB-Einträge."""
     if not contacts or not text:
         return text
-
     company_names = [c.get('company_name', '') for c in contacts if c.get('company_name')]
     if not company_names:
         return text
-
     words = text.split()
     result_words = []
     i = 0
-
     while i < len(words):
         matched = False
         for length in range(min(4, len(words) - i), 0, -1):
             phrase = ' '.join(words[i:i+length])
             if len(phrase) < 3:
                 continue
-
             best_match = None
             best_score = 0
-
             for company in company_names:
                 score = similarity_score(phrase.lower(), company.lower())
                 if score > best_score:
                     best_score = score
                     best_match = company
-
             if best_score > 0.75 and best_match:
                 result_words.append(best_match)
                 i += length
                 matched = True
                 break
-
         if not matched:
             result_words.append(words[i])
             i += 1
-
     return ' '.join(result_words)
 
-
 def similarity_score(a: str, b: str) -> float:
-    """Berechnet Ähnlichkeit zwischen zwei Strings (0-1)."""
-    if a == b:
-        return 1.0
-    if not a or not b:
-        return 0.0
-
-    if a in b or b in a:
-        return 0.85
-
+    if a == b: return 1.0
+    if not a or not b: return 0.0
+    if a in b or b in a: return 0.85
     longer = a if len(a) >= len(b) else b
     shorter = a if len(a) < len(b) else b
-
     matches = 0
     used = [False] * len(longer)
     for char in shorter:
@@ -112,17 +236,14 @@ def similarity_score(a: str, b: str) -> float:
                 matches += 1
                 used[j] = True
                 break
-
-    if matches == 0:
-        return 0.0
-
+    if matches == 0: return 0.0
     score = (matches / len(shorter) + matches / len(longer)) / 2
-
-    if a[0] == b[0]:
-        score = min(1.0, score + 0.1)
-
+    if a[0] == b[0]: score = min(1.0, score + 0.1)
     return score
 
+# ─────────────────────────────────────────
+# CHAT
+# ─────────────────────────────────────────
 
 BASE_SYSTEM_PROMPT = """Du bist ein intelligenter Assistent für ein kleines Team.
 Du führst echte Gespräche – du erinnerst dich an alles was in dieser Unterhaltung gesagt wurde, hakst nach, machst Vorschläge und denkst mit.
@@ -167,7 +288,6 @@ REGEL 4 – Antworten:
 - Wenn etwas nicht in den Daten steht: "Dazu habe ich keine Information"
 {extra_prompt}"""
 
-
 def build_system_prompt(workspace: dict = None) -> str:
     custom_fields_info = ""
     extra_prompt = ""
@@ -183,6 +303,16 @@ def build_system_prompt(workspace: dict = None) -> str:
         custom_fields_info=custom_fields_info,
         extra_prompt=extra_prompt
     )
+
+class Message(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    message: str
+    language: str = "de"
+    history: List[Message] = []
+    workspace_id: str = None
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
@@ -209,7 +339,6 @@ async def chat(req: ChatRequest):
     ]) if contacts else "Noch keine Einträge."
 
     system_prompt = build_system_prompt(workspace)
-
     messages = []
     db_prefix = f"Kundendatenbank:\n{contacts_text}\n\n---\nNachricht ({req.language}): "
 
@@ -253,7 +382,6 @@ async def chat(req: ChatRequest):
                     if action_data.get("contact_name"):
                         update_payload["contact_name"] = action_data.get("contact_name")
 
-                    # Custom fields zusammenführen – bestehende Felder behalten
                     if action_data.get("custom_fields"):
                         existing_cf = {}
                         if existing.data:
@@ -276,6 +404,9 @@ async def chat(req: ChatRequest):
     clean_response = re.sub(r'<db_action>.*?</db_action>', '', response_text, flags=re.DOTALL).strip()
     return {"reply": clean_response}
 
+# ─────────────────────────────────────────
+# SPEECH
+# ─────────────────────────────────────────
 
 MONTHS_DE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"]
 MONTHS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"]
@@ -309,8 +440,7 @@ def format_for_speech(text: str, lang: str) -> str:
         y = int(m.group(0))
         if 2000 <= y <= 2099:
             rest = y - 2000
-            if rest == 0:
-                return "zweitausend"
+            if rest == 0: return "zweitausend"
             elif rest < 10:
                 return f"zweitausendund{['null','ein','zwei','drei','vier','fünf','sechs','sieben','acht','neun'][rest]}"
             elif rest < 20:
@@ -320,8 +450,7 @@ def format_for_speech(text: str, lang: str) -> str:
                 tens = ['','','zwanzig','dreißig','vierzig','fünfzig','sechzig','siebzig','achtzig','neunzig']
                 ones = ['','ein','zwei','drei','vier','fünf','sechs','sieben','acht','neun']
                 t, o = rest // 10, rest % 10
-                if o == 0:
-                    return f"zweitausendund{tens[t]}"
+                if o == 0: return f"zweitausendund{tens[t]}"
                 return f"zweitausendund{ones[o]}und{tens[t]}"
         return m.group(0)
 
@@ -333,8 +462,7 @@ def format_for_speech(text: str, lang: str) -> str:
             elif rest < 20:
                 nums = ['','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf']
                 return f"deux mille {nums[rest]}"
-            else:
-                return f"deux mille {rest}"
+            else: return f"deux mille {rest}"
         return m.group(0)
 
     def year_to_words_en(m):
@@ -348,9 +476,7 @@ def format_for_speech(text: str, lang: str) -> str:
 
     year_func = year_to_words_de if lang == "de" else year_to_words_fr if lang == "fr" else year_to_words_en
     text = re.sub(r'\b(20\d{2})\b', year_func, text)
-
     return text
-
 
 @app.post("/transcribe")
 async def transcribe(request: Request):
@@ -362,7 +488,6 @@ async def transcribe(request: Request):
 
         if not audio_file:
             return JSONResponse({"error": "No audio"}, status_code=400)
-
         if not openai_client:
             return JSONResponse({"error": "No OpenAI key"}, status_code=400)
 
@@ -377,17 +502,12 @@ async def transcribe(request: Request):
         import io
         audio_io = io.BytesIO(audio_bytes)
         audio_io.name = filename
-
         lang_code = "de" if lang == "de" else "fr" if lang == "fr" else "en"
 
-        if filename.endswith('.mp4') or filename.endswith('.m4a'):
-            mime = "audio/mp4"
-        elif filename.endswith('.ogg') or filename.endswith('.oga'):
-            mime = "audio/ogg"
-        elif filename.endswith('.wav'):
-            mime = "audio/wav"
-        else:
-            mime = "audio/webm"
+        if filename.endswith('.mp4') or filename.endswith('.m4a'): mime = "audio/mp4"
+        elif filename.endswith('.ogg') or filename.endswith('.oga'): mime = "audio/ogg"
+        elif filename.endswith('.wav'): mime = "audio/wav"
+        else: mime = "audio/webm"
 
         transcript = await openai_client.audio.transcriptions.create(
             model="whisper-1",
@@ -395,14 +515,11 @@ async def transcribe(request: Request):
             language=lang_code,
             prompt=prompt
         )
-
-        text = transcript.text.strip()
-        return {"transcript": text}
+        return {"transcript": transcript.text.strip()}
 
     except Exception as e:
         print(f"Transcribe error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
-
 
 @app.post("/speak")
 async def speak(request: Request):
@@ -410,8 +527,6 @@ async def speak(request: Request):
         body = await request.json()
         text = body.get("text", "")
         lang = body.get("language", "de")
-
-        print(f"SPEAK: lang={lang}, key={bool(ELEVENLABS_API_KEY)}, chars={len(text)}")
 
         if not ELEVENLABS_API_KEY:
             return JSONResponse({"error": "No ElevenLabs key"}, status_code=400)
@@ -436,8 +551,6 @@ async def speak(request: Request):
                 }
             )
 
-        print(f"ElevenLabs status: {el_response.status_code}")
-
         if el_response.status_code == 200:
             return Response(
                 content=el_response.content,
@@ -445,13 +558,14 @@ async def speak(request: Request):
                 headers={"Access-Control-Allow-Origin": "*"}
             )
         else:
-            print(f"ElevenLabs error: {el_response.text}")
             return JSONResponse({"error": f"ElevenLabs {el_response.status_code}"}, status_code=500)
 
     except Exception as e:
-        print(f"SPEAK exception: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# ─────────────────────────────────────────
+# WORKSPACES & CONTACTS
+# ─────────────────────────────────────────
 
 @app.get("/workspaces")
 async def get_workspaces():
@@ -484,13 +598,8 @@ async def bulk_import_contact(request: Request):
             v = body.get(val, "") or ""
             return v.strip() if v.strip() else default
 
-        payload = {
-            "company_name": company_name,
-            "updated_at": datetime.utcnow().isoformat()
-        }
-        if workspace_id:
-            payload["workspace_id"] = workspace_id
-
+        payload = {"company_name": company_name, "updated_at": datetime.utcnow().isoformat()}
+        if workspace_id: payload["workspace_id"] = workspace_id
         if clean("contact_name"): payload["contact_name"] = clean("contact_name")
         if clean("email"): payload["email"] = clean("email")
         if clean("phone"): payload["phone"] = clean("phone")
@@ -514,9 +623,7 @@ async def bulk_import_contact(request: Request):
 
         return {"success": True}
     except Exception as e:
-        print(f"Import error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
-
 
 @app.delete("/contacts/{contact_id}")
 async def delete_contact(contact_id: str):
@@ -535,7 +642,6 @@ async def update_contact(contact_id: str, request: Request):
         return {"success": True}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-
 
 @app.get("/health")
 async def health():
