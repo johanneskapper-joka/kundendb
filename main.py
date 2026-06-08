@@ -580,6 +580,19 @@ async def get_contacts(workspace_id: str = None):
     result = query.execute()
     return result.data
 
+@app.post("/contacts")
+async def create_contact(request: Request):
+    try:
+        body = await request.json()
+        if not body.get("company_name", "").strip():
+            return JSONResponse({"error": "company_name required"}, status_code=400)
+        body["created_at"] = datetime.utcnow().isoformat()
+        body["updated_at"] = datetime.utcnow().isoformat()
+        result = supabase.table("contacts").insert(body).execute()
+        return {"success": True, "data": result.data}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @app.post("/contacts/bulk-import")
 async def bulk_import_contact(request: Request):
     try:
