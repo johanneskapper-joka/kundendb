@@ -504,6 +504,7 @@ async function loadWorkspaces() {
     const r = await fetch(`${API}/workspaces`, { headers: { Authorization: `Bearer ${token}` } });
     workspaces = await r.json();
     const sel = document.getElementById('u-workspace');
+    sel.innerHTML = '<option value="">– kein / alle –</option>';
     workspaces.forEach(ws => {
       const o = document.createElement('option');
       o.value = ws.id; o.textContent = `${ws.icon || ''} ${ws.name}`;
