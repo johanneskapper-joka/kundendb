@@ -10,7 +10,7 @@ import httpx
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 import openai
 
 app = FastAPI()
@@ -312,7 +312,8 @@ class ChatRequest(BaseModel):
     message: str
     language: str = "de"
     history: List[Message] = []
-    workspace_id: str = None
+    workspace_id: Optional[str] = None
+
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
