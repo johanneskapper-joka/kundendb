@@ -317,7 +317,7 @@
             <option value="en">🇬🇧</option>
           </select>
           <textarea id="chat-input" placeholder="Nachricht …" rows="1"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();stopSpeech();sendChat()}"
             oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
           <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
           <button class="send-btn change-only" onclick="sendChat()" style="display:none">Senden</button>
@@ -616,20 +616,51 @@ async function deleteContact() {
 }
 
 // ── CHAT ──
-async function sendChat() {
+let voiceTriggered = false;
+let currentAudio = null;
+
+function stopSpeech() {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = '';
+    currentAudio = null;
+  }
+}
+
+async function speakText(text, lang) {
+  try {
+    stopSpeech();
+    const r = await fetch(`${API}/speak`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+      body: JSON.stringify({ text, language: lang })
+    });
+    if (!r.ok) return;
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    currentAudio.play();
+    currentAudio.onended = () => { currentAudio = null; };
+  } catch {}
+}
+
+async function sendChat(fromVoice = false) {
   const input = document.getElementById('chat-input');
   const msg = input.value.trim();
   if (!msg) return;
+  stopSpeech();
   input.value = ''; input.style.height = 'auto';
+  voiceTriggered = fromVoice;
   addMsg(msg, 'user');
   chatHistory.push({ role: 'user', content: msg });
   try {
+    const lang = document.getElementById('lang-select').value;
     const r = await fetch(`${API}/chat`, {
       method: 'POST',
       headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
       body: JSON.stringify({
         message: msg,
-        language: document.getElementById('lang-select').value,
+        language: lang,
         history: chatHistory.slice(-10),
         workspace_id: session.workspace_id
       })
@@ -637,6 +668,7 @@ async function sendChat() {
     const data = await r.json();
     addMsg(data.reply, 'ai');
     chatHistory.push({ role: 'assistant', content: data.reply });
+    if (voiceTriggered) speakText(data.reply, lang);
     await loadContacts();
   } catch { addMsg('Verbindungsfehler.', 'ai'); }
 }
@@ -655,6 +687,7 @@ async function toggleMic() {
     mediaRecorder.stop();
     return;
   }
+  stopSpeech();
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
@@ -669,7 +702,7 @@ async function toggleMic() {
       const data = await r.json();
       if (data.transcript) {
         document.getElementById('chat-input').value = data.transcript;
-        sendChat();
+        sendChat(true);
       }
       stream.getTracks().forEach(t => t.stop());
       isRecording = false;
