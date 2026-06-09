@@ -30,6 +30,12 @@ async def add_cors_headers(request: Request, call_next):
     return response
 
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+
+# Service-Role-Key (nur serverseitig!) für Datei-Uploads in Supabase Storage.
+# Fällt auf den normalen Key zurück, falls noch nicht gesetzt – damit der Server nicht abstürzt.
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+supabase_admin = create_client(os.environ["SUPABASE_URL"], SUPABASE_SERVICE_KEY) if SUPABASE_SERVICE_KEY else supabase
+
 claude = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
@@ -642,6 +648,15 @@ async def bulk_import_contact(request: Request):
 @app.delete("/contacts/{contact_id}")
 async def delete_contact(contact_id: str):
     try:
+        # Zugehörige Bilder mit aufräumen (DB-Einträge + Dateien im Storage)
+        try:
+            imgs = supabase_admin.table("contact_images").select("storage_path").eq("contact_id", contact_id).execute()
+            paths = [i["storage_path"] for i in (imgs.data or []) if i.get("storage_path")]
+            if paths:
+                supabase_admin.storage.from_(IMAGE_BUCKET).remove(paths)
+            supabase_admin.table("contact_images").delete().eq("contact_id", contact_id).execute()
+        except Exception as e:
+            print(f"Image cleanup error: {e}")
         supabase.table("contacts").delete().eq("id", contact_id).execute()
         return {"success": True}
     except Exception as e:
@@ -657,6 +672,100 @@ async def update_contact(contact_id: str, request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# ─────────────────────────────────────────
+# CONTACT IMAGES (Bilder zu Kontakten)
+# ─────────────────────────────────────────
+# Dateien liegen im privaten Supabase-Storage-Bucket "contact-images".
+# In der DB-Tabelle "contact_images" steht nur der Pfad – kein öffentlicher Link.
+# Beim Abrufen erzeugt der Server kurzlebige, signierte Links (1 Stunde gültig).
+
+IMAGE_BUCKET = "contact-images"
+ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+def _signed_url(storage_path: str, expires: int = 3600) -> str:
+    """Erzeugt einen zeitlich begrenzten Link für eine Datei im privaten Bucket."""
+    try:
+        res = supabase_admin.storage.from_(IMAGE_BUCKET).create_signed_url(storage_path, expires)
+        if isinstance(res, dict):
+            return res.get("signedURL") or res.get("signedUrl") or res.get("signed_url") or ""
+        return getattr(res, "signedURL", "") or getattr(res, "signed_url", "") or ""
+    except Exception as e:
+        print(f"Signed URL error: {e}")
+        return ""
+
+@app.get("/contacts/{contact_id}/images")
+async def list_contact_images(contact_id: str):
+    try:
+        result = supabase_admin.table("contact_images")\
+            .select("*").eq("contact_id", contact_id).order("created_at").execute()
+        images = result.data or []
+        for img in images:
+            img["url"] = _signed_url(img.get("storage_path", ""))
+        return images
+    except Exception as e:
+        print(f"List images error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/contacts/{contact_id}/images")
+async def upload_contact_image(contact_id: str, request: Request):
+    try:
+        form = await request.form()
+        upload = form.get("image")
+        if upload is None or not hasattr(upload, "read"):
+            return JSONResponse({"error": "Kein Bild übermittelt"}, status_code=400)
+
+        file_bytes = await upload.read()
+        if not file_bytes:
+            return JSONResponse({"error": "Leere Datei"}, status_code=400)
+        if len(file_bytes) > MAX_IMAGE_BYTES:
+            return JSONResponse({"error": "Datei zu groß (max. 10 MB)"}, status_code=400)
+
+        original_name = (getattr(upload, "filename", None) or "bild").strip()
+        content_type = getattr(upload, "content_type", None) or "application/octet-stream"
+        if content_type not in ALLOWED_IMAGE_TYPES:
+            return JSONResponse({"error": f"Dateityp nicht erlaubt: {content_type}"}, status_code=400)
+
+        ext = os.path.splitext(original_name)[1].lower() or ".jpg"
+        storage_path = f"{contact_id}/{secrets.token_hex(8)}{ext}"
+
+        supabase_admin.storage.from_(IMAGE_BUCKET).upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": content_type, "upsert": "true"}
+        )
+
+        row = supabase_admin.table("contact_images").insert({
+            "contact_id": contact_id,
+            "storage_path": storage_path,
+            "filename": original_name,
+            "content_type": content_type
+        }).execute()
+
+        img = row.data[0]
+        img["url"] = _signed_url(storage_path)
+        return {"success": True, "image": img}
+
+    except Exception as e:
+        print(f"Image upload error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.delete("/images/{image_id}")
+async def delete_contact_image(image_id: str):
+    try:
+        result = supabase_admin.table("contact_images").select("*").eq("id", image_id).execute()
+        if result.data:
+            storage_path = result.data[0].get("storage_path")
+            if storage_path:
+                try:
+                    supabase_admin.storage.from_(IMAGE_BUCKET).remove([storage_path])
+                except Exception as e:
+                    print(f"Storage remove error: {e}")
+        supabase_admin.table("contact_images").delete().eq("id", image_id).execute()
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @app.get("/health")
 async def health():
-    return {"status": "ok", "elevenlabs": bool(ELEVENLABS_API_KEY)}
+    return {"status": "ok", "elevenlabs": bool(ELEVENLABS_API_KEY), "storage": bool(SUPABASE_SERVICE_KEY)}
