@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v4.2-velo-custom-fields -->
+<!-- v4.3-velo-images -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -131,6 +131,18 @@
   .btn-secondary { flex: 1; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); font-family: 'Geist', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.15s; }
   .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
 
+  /* Bilder im Modal */
+  .image-upload-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .image-upload-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer; transition: all 0.15s; }
+  .image-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .image-upload-status { font-size: 11px; color: var(--text-muted); }
+  .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 6px; }
+  .image-thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: var(--surface2); }
+  .image-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; display: block; }
+  .image-thumb-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border: none; border-radius: 6px; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+  .image-thumb-del:hover { background: var(--danger); }
+  .image-empty { font-size: 11px; color: var(--text-muted); padding: 4px 0; }
+
   /* Chat */
   .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
   .messages { flex: 1; overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; -webkit-overflow-scrolling: touch; }
@@ -227,6 +239,15 @@
     </div>
     <div class="modal-field"><label>Notizen</label><textarea id="editNotes"></textarea></div>
     <div id="customFieldsContainer"></div>
+    <div class="modal-section-title">Bilder</div>
+    <div class="image-upload-row">
+      <label class="image-upload-btn">
+        &#43; Bild hinzuf&uuml;gen
+        <input type="file" id="imageUploadInput" accept="image/*" multiple style="display:none" onchange="uploadImages(this)">
+      </label>
+      <span class="image-upload-status" id="imageUploadStatus"></span>
+    </div>
+    <div class="image-grid" id="imageGrid"></div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">Abbrechen</button>
       <button class="btn-primary" onclick="saveContact()">Speichern</button>
@@ -642,6 +663,7 @@ function openEdit(id) {
   document.getElementById('editStatus').value = c.status || 'interessiert';
   document.getElementById('editNotes').value = c.notes || '';
   renderCustomFields(c);
+  loadContactImages(c.id);
   document.getElementById('editModal').classList.add('visible');
 }
 
@@ -664,6 +686,66 @@ function saveContact() {
 }
 
 document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+// ── Bilder zu Kontakten ──────────────────────────────────────────────────────
+
+function loadContactImages(contactId) {
+  var grid = document.getElementById('imageGrid');
+  var status = document.getElementById('imageUploadStatus');
+  if (status) status.textContent = '';
+  grid.innerHTML = '<div class="image-empty">Wird geladen…</div>';
+  fetch(BACKEND_URL + "/contacts/" + contactId + "/images")
+    .then(function(r) { return r.json(); })
+    .then(function(imgs) { renderImages(imgs || []); })
+    .catch(function() { grid.innerHTML = '<div class="image-empty">Bilder nicht erreichbar</div>'; });
+}
+
+function renderImages(imgs) {
+  var grid = document.getElementById('imageGrid');
+  if (!imgs.length) { grid.innerHTML = '<div class="image-empty">Noch keine Bilder</div>'; return; }
+  grid.innerHTML = imgs.map(function(img) {
+    var safeUrl = (img.url || '').replace(/'/g, "%27");
+    return '<div class="image-thumb">' +
+      '<img src="' + safeUrl + '" alt="" onclick="window.open(\'' + safeUrl + '\',\'_blank\')">' +
+      '<button class="image-thumb-del" title="Löschen" onclick="deleteImage(\'' + img.id + '\')">&#10005;</button>' +
+      '</div>';
+  }).join('');
+}
+
+function uploadImages(input) {
+  var contactId = document.getElementById('editId').value;
+  if (!contactId) { alert('Bitte zuerst einen Kontakt öffnen.'); return; }
+  var files = Array.prototype.slice.call(input.files);
+  if (!files.length) return;
+  var status = document.getElementById('imageUploadStatus');
+  var done = 0, failed = 0;
+  status.textContent = 'Lädt hoch… (0/' + files.length + ')';
+  var chain = Promise.resolve();
+  files.forEach(function(file) {
+    chain = chain.then(function() {
+      var fd = new FormData();
+      fd.append('image', file, file.name);
+      return fetch(BACKEND_URL + "/contacts/" + contactId + "/images", { method: 'POST', body: fd })
+        .then(function(r) { if (r.ok) done++; else failed++; })
+        .catch(function() { failed++; })
+        .then(function() { status.textContent = 'Lädt hoch… (' + (done + failed) + '/' + files.length + ')'; });
+    });
+  });
+  chain.then(function() {
+    status.textContent = failed ? (done + ' hochgeladen, ' + failed + ' fehlgeschlagen') : 'Fertig ✓';
+    input.value = '';
+    loadContactImages(contactId);
+    setTimeout(function() { if (status) status.textContent = ''; }, 3000);
+  });
+}
+
+function deleteImage(imageId) {
+  if (!confirm('Bild wirklich löschen?')) return;
+  var contactId = document.getElementById('editId').value;
+  fetch(BACKEND_URL + "/images/" + imageId, { method: 'DELETE' })
+    .then(function(r) { if (r.ok) loadContactImages(contactId); else alert('Fehler beim Löschen.'); })
+    .catch(function() { alert('Verbindungsfehler.'); });
+}
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
 
