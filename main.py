@@ -322,7 +322,7 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, request: Request):
     workspace = None
     if req.workspace_id:
         ws_result = supabase.table("workspaces").select("*").eq("id", req.workspace_id).execute()
@@ -402,9 +402,17 @@ async def chat(req: ChatRequest):
                         if new_note:
                             update_payload["notes"] = f"{old_notes}\n[{datetime.today().strftime('%d.%m.%Y')}] {new_note}".strip()
                         supabase.table("contacts").update(update_payload).eq("company_name", action_data["company_name"]).execute()
+                        _a_uid, _a_uname = get_actor(request)
+                        log_activity("update", contact_name=action_data.get("company_name"),
+                                     workspace_id=req.workspace_id, details="per KI-Chat",
+                                     user_id=_a_uid, user_name=_a_uname)
                     else:
                         update_payload["notes"] = action_data.get("notes_append", "")
                         supabase.table("contacts").insert(update_payload).execute()
+                        _a_uid, _a_uname = get_actor(request)
+                        log_activity("create", contact_name=action_data.get("company_name"),
+                                     workspace_id=req.workspace_id, details="per KI-Chat",
+                                     user_id=_a_uid, user_name=_a_uname)
             except Exception as e:
                 print(f"DB error: {e}")
 
@@ -571,6 +579,34 @@ async def speak(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 # ─────────────────────────────────────────
+# AKTIVITÄTS-LOG (Logbuch) – Helfer
+# ─────────────────────────────────────────
+
+def get_actor(request: Request):
+    """Wer führt die Aktion aus? Login-Version: echter Nutzer. Spielwiese (ohne Login): 'Gast'."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if session and session.get("expires") and session["expires"] >= datetime.now():
+        return session.get("user_id"), (session.get("full_name") or session.get("email") or "Nutzer")
+    return None, "Gast"
+
+def log_activity(action, contact_name=None, workspace_id=None, contact_id=None,
+                 details=None, user_id=None, user_name="Gast"):
+    """Schreibt einen Eintrag ins Logbuch. Fehler hier dürfen die eigentliche Aktion NIE blockieren."""
+    try:
+        supabase_admin.table("activity_log").insert({
+            "action": action,
+            "contact_name": contact_name,
+            "workspace_id": workspace_id,
+            "contact_id": contact_id,
+            "details": details,
+            "user_id": user_id,
+            "user_name": user_name,
+        }).execute()
+    except Exception as e:
+        print(f"Activity log error: {e}")
+
+# ─────────────────────────────────────────
 # WORKSPACES & CONTACTS
 # ─────────────────────────────────────────
 
@@ -596,6 +632,11 @@ async def create_contact(request: Request):
         body["created_at"] = datetime.utcnow().isoformat()
         body["updated_at"] = datetime.utcnow().isoformat()
         result = supabase.table("contacts").insert(body).execute()
+        uid, uname = get_actor(request)
+        new_id = result.data[0]["id"] if result.data else None
+        log_activity("create", contact_name=body.get("company_name"),
+                     workspace_id=body.get("workspace_id"), contact_id=new_id,
+                     user_id=uid, user_name=uname)
         return {"success": True, "data": result.data}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -641,13 +682,19 @@ async def bulk_import_contact(request: Request):
         else:
             supabase.table("contacts").insert(payload).execute()
 
+        uid, uname = get_actor(request)
+        log_activity("import", contact_name=company_name, workspace_id=workspace_id,
+                     user_id=uid, user_name=uname)
         return {"success": True}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.delete("/contacts/{contact_id}")
-async def delete_contact(contact_id: str):
+async def delete_contact(contact_id: str, request: Request):
     try:
+        info = supabase.table("contacts").select("company_name, workspace_id").eq("id", contact_id).execute()
+        cname = info.data[0]["company_name"] if info.data else None
+        wsid = info.data[0]["workspace_id"] if info.data else None
         # Zugehörige Bilder mit aufräumen (DB-Einträge + Dateien im Storage)
         try:
             imgs = supabase_admin.table("contact_images").select("storage_path").eq("contact_id", contact_id).execute()
@@ -658,6 +705,9 @@ async def delete_contact(contact_id: str):
         except Exception as e:
             print(f"Image cleanup error: {e}")
         supabase.table("contacts").delete().eq("id", contact_id).execute()
+        uid, uname = get_actor(request)
+        log_activity("delete", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
+                     user_id=uid, user_name=uname)
         return {"success": True}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -668,6 +718,14 @@ async def update_contact(contact_id: str, request: Request):
         body = await request.json()
         body["updated_at"] = datetime.utcnow().isoformat()
         supabase.table("contacts").update(body).eq("id", contact_id).execute()
+        uid, uname = get_actor(request)
+        info = supabase.table("contacts").select("company_name, workspace_id").eq("id", contact_id).execute()
+        cname = info.data[0]["company_name"] if info.data else body.get("company_name")
+        wsid = info.data[0]["workspace_id"] if info.data else None
+        changed = [k for k in body.keys() if k != "updated_at"]
+        log_activity("update", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
+                     details=("Felder: " + ", ".join(changed)) if changed else None,
+                     user_id=uid, user_name=uname)
         return {"success": True}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -744,6 +802,13 @@ async def upload_contact_image(contact_id: str, request: Request):
 
         img = row.data[0]
         img["url"] = _signed_url(storage_path)
+
+        uid, uname = get_actor(request)
+        cinfo = supabase.table("contacts").select("company_name, workspace_id").eq("id", contact_id).execute()
+        cname = cinfo.data[0]["company_name"] if cinfo.data else None
+        wsid = cinfo.data[0]["workspace_id"] if cinfo.data else None
+        log_activity("image_upload", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
+                     details=original_name, user_id=uid, user_name=uname)
         return {"success": True, "image": img}
 
     except Exception as e:
@@ -751,19 +816,51 @@ async def upload_contact_image(contact_id: str, request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.delete("/images/{image_id}")
-async def delete_contact_image(image_id: str):
+async def delete_contact_image(image_id: str, request: Request):
     try:
         result = supabase_admin.table("contact_images").select("*").eq("id", image_id).execute()
+        cid = None
+        fname = None
         if result.data:
             storage_path = result.data[0].get("storage_path")
+            cid = result.data[0].get("contact_id")
+            fname = result.data[0].get("filename")
             if storage_path:
                 try:
                     supabase_admin.storage.from_(IMAGE_BUCKET).remove([storage_path])
                 except Exception as e:
                     print(f"Storage remove error: {e}")
         supabase_admin.table("contact_images").delete().eq("id", image_id).execute()
+        uid, uname = get_actor(request)
+        cname = None
+        wsid = None
+        if cid:
+            cinfo = supabase.table("contacts").select("company_name, workspace_id").eq("id", cid).execute()
+            if cinfo.data:
+                cname = cinfo.data[0]["company_name"]
+                wsid = cinfo.data[0]["workspace_id"]
+        log_activity("image_delete", contact_name=cname, workspace_id=wsid, contact_id=cid,
+                     details=fname, user_id=uid, user_name=uname)
         return {"success": True}
     except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ─────────────────────────────────────────
+# AKTIVITÄTS-LOG abrufen (Logbuch)
+# ─────────────────────────────────────────
+
+@app.get("/activity-log")
+async def get_activity_log(workspace_id: str = None, limit: int = 200):
+    """Gibt die neuesten Logbuch-Einträge zurück (optional nach Workspace gefiltert).
+    Die Filterung nach Heute/Woche/Monat passiert im Frontend."""
+    try:
+        query = supabase_admin.table("activity_log").select("*").order("created_at", desc=True).limit(limit)
+        if workspace_id:
+            query = query.eq("workspace_id", workspace_id)
+        result = query.execute()
+        return result.data
+    except Exception as e:
+        print(f"Activity log read error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/health")
