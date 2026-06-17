@@ -248,6 +248,75 @@ def similarity_score(a: str, b: str) -> float:
     return score
 
 # ─────────────────────────────────────────
+# DUPLIKAT-PRÜFUNG
+# ─────────────────────────────────────────
+# Prüft VOR dem Speichern, ob es schon einen ähnlichen Kontakt gibt.
+# Vergleicht: (Firmenname + Ansprechpartner identisch) ODER Telefon identisch ODER E-Mail identisch.
+# Gelöschte Kontakte (Papierkorb) werden NICHT als Duplikat gewertet.
+
+def _normalize_text(s: str) -> str:
+    return re.sub(r'\s+', ' ', (s or '').strip().lower())
+
+def _normalize_phone(s: str) -> str:
+    return re.sub(r'[^\d+]', '', s or '')
+
+@app.post("/contacts/check-duplicate")
+async def check_duplicate(request: Request):
+    try:
+        body = await request.json()
+        company_name = _normalize_text(body.get("company_name", ""))
+        contact_name = _normalize_text(body.get("contact_name", ""))
+        phone = _normalize_phone(body.get("phone", ""))
+        email = _normalize_text(body.get("email", ""))
+        workspace_id = body.get("workspace_id")
+        exclude_id = body.get("exclude_id")  # beim Bearbeiten: eigenen Kontakt nicht als Duplikat zählen
+
+        if not company_name and not phone and not email:
+            return {"duplicates": []}
+
+        query = supabase.table("contacts").select("*").is_("deleted_at", "null")
+        if workspace_id:
+            query = query.eq("workspace_id", workspace_id)
+        result = query.execute()
+        candidates = result.data or []
+
+        matches = []
+        for c in candidates:
+            if exclude_id and c.get("id") == exclude_id:
+                continue
+            c_company = _normalize_text(c.get("company_name", ""))
+            c_contact = _normalize_text(c.get("contact_name", ""))
+            c_phone = _normalize_phone(c.get("phone", ""))
+            c_email = _normalize_text(c.get("email", ""))
+
+            is_match = False
+            reason = []
+            if company_name and contact_name and c_company == company_name and c_contact == contact_name:
+                is_match = True
+                reason.append("Name + Ansprechpartner identisch")
+            if phone and c_phone and phone == c_phone:
+                is_match = True
+                reason.append("Telefonnummer identisch")
+            if email and c_email and email == c_email:
+                is_match = True
+                reason.append("E-Mail identisch")
+
+            if is_match:
+                matches.append({
+                    "id": c.get("id"),
+                    "company_name": c.get("company_name"),
+                    "contact_name": c.get("contact_name"),
+                    "phone": c.get("phone"),
+                    "email": c.get("email"),
+                    "reason": ", ".join(reason)
+                })
+
+        return {"duplicates": matches}
+    except Exception as e:
+        print(f"Duplicate check error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ─────────────────────────────────────────
 # CHAT
 # ─────────────────────────────────────────
 
@@ -329,7 +398,7 @@ async def chat(req: ChatRequest, request: Request):
         if ws_result.data:
             workspace = ws_result.data[0]
 
-    query = supabase.table("contacts").select("*")
+    query = supabase.table("contacts").select("*").is_("deleted_at", "null")
     if req.workspace_id:
         query = query.eq("workspace_id", req.workspace_id)
     result = query.execute()
@@ -373,7 +442,7 @@ async def chat(req: ChatRequest, request: Request):
                 action_data = json.loads(match.group(1).strip())
                 action = action_data.get("action")
                 if action in ["create", "update"] and action_data.get("company_name"):
-                    existing = supabase.table("contacts").select("*").eq("company_name", action_data["company_name"])
+                    existing = supabase.table("contacts").select("*").eq("company_name", action_data["company_name"]).is_("deleted_at", "null")
                     if req.workspace_id:
                         existing = existing.eq("workspace_id", req.workspace_id)
                     existing = existing.execute()
@@ -401,7 +470,7 @@ async def chat(req: ChatRequest, request: Request):
                         new_note = action_data.get("notes_append", "")
                         if new_note:
                             update_payload["notes"] = f"{old_notes}\n[{datetime.today().strftime('%d.%m.%Y')}] {new_note}".strip()
-                        supabase.table("contacts").update(update_payload).eq("company_name", action_data["company_name"]).execute()
+                        supabase.table("contacts").update(update_payload).eq("id", existing.data[0]["id"]).execute()
                         _a_uid, _a_uname = get_actor(request)
                         log_activity("update", contact_name=action_data.get("company_name"),
                                      workspace_id=req.workspace_id, details="per KI-Chat",
@@ -606,6 +675,14 @@ def log_activity(action, contact_name=None, workspace_id=None, contact_id=None,
     except Exception as e:
         print(f"Activity log error: {e}")
 
+def get_user_role(request: Request) -> str:
+    """Rolle des angemeldeten Nutzers, oder 'change' für die Spielwiese (kein Login = kein Rollensystem)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if session and session.get("expires") and session["expires"] >= datetime.now():
+        return session.get("role", "read")
+    return "change"  # Spielwiese ohne Login: voller Zugriff, wie bisher
+
 # ─────────────────────────────────────────
 # WORKSPACES & CONTACTS
 # ─────────────────────────────────────────
@@ -617,7 +694,7 @@ async def get_workspaces():
 
 @app.get("/contacts")
 async def get_contacts(workspace_id: str = None):
-    query = supabase.table("contacts").select("*").order("company_name")
+    query = supabase.table("contacts").select("*").is_("deleted_at", "null").order("company_name")
     if workspace_id:
         query = query.eq("workspace_id", workspace_id)
     result = query.execute()
@@ -650,7 +727,7 @@ async def bulk_import_contact(request: Request):
             return JSONResponse({"error": "company_name required"}, status_code=400)
 
         workspace_id = body.get("workspace_id")
-        query = supabase.table("contacts").select("*").eq("company_name", company_name)
+        query = supabase.table("contacts").select("*").eq("company_name", company_name).is_("deleted_at", "null")
         if workspace_id:
             query = query.eq("workspace_id", workspace_id)
         existing = query.execute()
@@ -678,7 +755,7 @@ async def bulk_import_contact(request: Request):
                 payload["last_contact"] = last_contact
 
         if existing.data:
-            supabase.table("contacts").update(payload).eq("company_name", company_name).execute()
+            supabase.table("contacts").update(payload).eq("id", existing.data[0]["id"]).execute()
         else:
             supabase.table("contacts").insert(payload).execute()
 
@@ -691,23 +768,18 @@ async def bulk_import_contact(request: Request):
 
 @app.delete("/contacts/{contact_id}")
 async def delete_contact(contact_id: str, request: Request):
+    """Soft Delete: Kontakt wird nur als gelöscht markiert (deleted_at), nicht wirklich entfernt.
+    Landet im Papierkorb und kann von Admin/Change wiederhergestellt werden."""
     try:
         info = supabase.table("contacts").select("company_name, workspace_id").eq("id", contact_id).execute()
         cname = info.data[0]["company_name"] if info.data else None
         wsid = info.data[0]["workspace_id"] if info.data else None
-        # Zugehörige Bilder mit aufräumen (DB-Einträge + Dateien im Storage)
-        try:
-            imgs = supabase_admin.table("contact_images").select("storage_path").eq("contact_id", contact_id).execute()
-            paths = [i["storage_path"] for i in (imgs.data or []) if i.get("storage_path")]
-            if paths:
-                supabase_admin.storage.from_(IMAGE_BUCKET).remove(paths)
-            supabase_admin.table("contact_images").delete().eq("contact_id", contact_id).execute()
-        except Exception as e:
-            print(f"Image cleanup error: {e}")
-        supabase.table("contacts").delete().eq("id", contact_id).execute()
+        supabase.table("contacts").update({
+            "deleted_at": datetime.utcnow().isoformat()
+        }).eq("id", contact_id).execute()
         uid, uname = get_actor(request)
         log_activity("delete", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
-                     user_id=uid, user_name=uname)
+                     details="In Papierkorb verschoben", user_id=uid, user_name=uname)
         return {"success": True}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -726,6 +798,67 @@ async def update_contact(contact_id: str, request: Request):
         log_activity("update", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
                      details=("Felder: " + ", ".join(changed)) if changed else None,
                      user_id=uid, user_name=uname)
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ─────────────────────────────────────────
+# PAPIERKORB (Soft Delete verwalten)
+# ─────────────────────────────────────────
+# Nur Admin und Change-Rolle dürfen den Papierkorb sehen/wiederherstellen/endgültig löschen.
+# In der Spielwiese (kein Login) ist das automatisch erlaubt, da dort kein Rollensystem existiert.
+
+@app.get("/contacts/trash")
+async def get_trash(request: Request, workspace_id: str = None):
+    role = get_user_role(request)
+    if role not in ("admin", "change"):
+        raise HTTPException(status_code=403, detail="Kein Zugriff auf den Papierkorb")
+    query = supabase.table("contacts").select("*").not_.is_("deleted_at", "null").order("deleted_at", desc=True)
+    if workspace_id:
+        query = query.eq("workspace_id", workspace_id)
+    result = query.execute()
+    return result.data
+
+@app.post("/contacts/{contact_id}/restore")
+async def restore_contact(contact_id: str, request: Request):
+    role = get_user_role(request)
+    if role not in ("admin", "change"):
+        raise HTTPException(status_code=403, detail="Kein Zugriff auf den Papierkorb")
+    try:
+        supabase.table("contacts").update({"deleted_at": None}).eq("id", contact_id).execute()
+        info = supabase.table("contacts").select("company_name, workspace_id").eq("id", contact_id).execute()
+        cname = info.data[0]["company_name"] if info.data else None
+        wsid = info.data[0]["workspace_id"] if info.data else None
+        uid, uname = get_actor(request)
+        log_activity("restore", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
+                     details="Aus Papierkorb wiederhergestellt", user_id=uid, user_name=uname)
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.delete("/contacts/{contact_id}/permanent")
+async def permanently_delete_contact(contact_id: str, request: Request):
+    """Endgültiges Löschen – nur aus dem Papierkorb heraus, nicht mehr rückholbar."""
+    role = get_user_role(request)
+    if role not in ("admin", "change"):
+        raise HTTPException(status_code=403, detail="Kein Zugriff auf den Papierkorb")
+    try:
+        info = supabase.table("contacts").select("company_name, workspace_id").eq("id", contact_id).execute()
+        cname = info.data[0]["company_name"] if info.data else None
+        wsid = info.data[0]["workspace_id"] if info.data else None
+        # Zugehörige Bilder mit aufräumen (DB-Einträge + Dateien im Storage)
+        try:
+            imgs = supabase_admin.table("contact_images").select("storage_path").eq("contact_id", contact_id).execute()
+            paths = [i["storage_path"] for i in (imgs.data or []) if i.get("storage_path")]
+            if paths:
+                supabase_admin.storage.from_(IMAGE_BUCKET).remove(paths)
+            supabase_admin.table("contact_images").delete().eq("contact_id", contact_id).execute()
+        except Exception as e:
+            print(f"Image cleanup error: {e}")
+        supabase.table("contacts").delete().eq("id", contact_id).execute()
+        uid, uname = get_actor(request)
+        log_activity("permanent_delete", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
+                     details="Endgültig gelöscht", user_id=uid, user_name=uname)
         return {"success": True}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
