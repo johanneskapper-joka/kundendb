@@ -4,16 +4,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Velo – Intelligent CRM</title>
+<title>velojo.ai – Playground</title>
 
 <!-- PWA -->
 <link rel="manifest" href="/kundendb/manifest.json" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Velo CRM" />
+<meta name="apple-mobile-web-app-title" content="velojo Playground" />
 <link rel="apple-touch-icon" href="/kundendb/icons/icon-192.png" />
-<meta name="theme-color" content="#0f0f13" />
-<meta name="msapplication-TileColor" content="#0f0f13" />
+<meta name="theme-color" content="#f5f4f0" />
+<meta name="msapplication-TileColor" content="#f5f4f0" />
 
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;1,300&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -49,9 +49,10 @@
   .logo { display: flex; align-items: center; gap: 12px; }
   .logo-mark { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
   .logo-mark svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; }
-  .logo-name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; letter-spacing: -0.5px; }
-  .logo-name em { font-style: italic; }
-  .logo-tag { font-size: 10px; font-weight: 500; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px; }
+  .logo-name-row { display: flex; align-items: baseline; gap: 4px; }
+  .logo-name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  .logo-dotai { font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+  .logo-tag { font-size: 10px; font-weight: 600; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; background: var(--surface2); display: inline-block; padding: 1px 7px; border-radius: 5px; }
   .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
   .lang-selector { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -261,8 +262,10 @@
       <svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg>
     </div>
     <div>
-      <div class="logo-name">Ve<em>lo</em></div>
-      <div class="logo-tag">Intelligent CRM</div>
+      <div class="logo-name-row">
+        <span class="logo-name">velojo</span><span class="logo-dotai">.ai</span>
+      </div>
+      <div class="logo-tag">Playground</div>
     </div>
   </div>
   <div class="header-right">
@@ -764,7 +767,7 @@ function exportCSV() {
   });
   var blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   var url = URL.createObjectURL(blob);
-  var a = document.createElement('a'); a.href = url; a.download = 'velo_' + new Date().toISOString().slice(0,10) + '.csv';
+  var a = document.createElement('a'); a.href = url; a.download = 'velojo_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click(); URL.revokeObjectURL(url);
 }
 
