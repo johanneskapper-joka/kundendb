@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v4.3-velo-images -->
+<!-- v5.0-velojo-softdelete -->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -86,7 +86,17 @@
   /* Sidebar */
   .sidebar { width: 270px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.3s ease, opacity 0.3s ease; overflow: hidden; }
   .sidebar.hidden { width: 0; opacity: 0; pointer-events: none; }
-  .sidebar-header { padding: 16px 16px 10px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+  .sidebar-header { padding: 16px 16px 10px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .sidebar-header-tabs { display: flex; gap: 4px; }
+  .sidebar-header-tab { font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; cursor: pointer; color: var(--text-muted); border: 1px solid transparent; }
+  .sidebar-header-tab.active { background: var(--surface2); color: var(--text); border-color: var(--border); }
+  .contact-action-btn.restore:hover { background: #e8f5ee; color: var(--success); }
+  .trash-meta { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+  .dup-warning { background: #fff7e6; border: 1px solid #f0c674; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; font-size: 12px; color: #6b5219; display: none; }
+  .dup-warning.visible { display: block; }
+  .dup-warning-title { font-weight: 600; margin-bottom: 6px; font-size: 12px; }
+  .dup-warning-item { padding: 4px 0; border-top: 1px solid #f0dba8; }
+  .dup-warning-item:first-of-type { border-top: none; }
   .sidebar-actions { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
   .sidebar-action-btn { flex: 1; padding: 6px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text-muted); cursor: pointer; font-family: 'Geist', sans-serif; font-size: 11px; font-weight: 500; text-align: center; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
   .sidebar-action-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -224,11 +234,15 @@
     <h3>Kontakt bearbeiten</h3>
     <div class="modal-workspace-label" id="modalWorkspaceLabel"></div>
     <input type="hidden" id="editId">
+    <div class="dup-warning" id="dupWarning">
+      <div class="dup-warning-title">&#9888; Möglicher Doppeleintrag gefunden</div>
+      <div id="dupWarningList"></div>
+    </div>
     <div class="modal-grid">
-      <div class="modal-field"><label>Firma / Name</label><input type="text" id="editCompany"></div>
-      <div class="modal-field"><label>Ansprechpartner</label><input type="text" id="editContact"></div>
-      <div class="modal-field"><label>E-Mail</label><input type="text" id="editEmail"></div>
-      <div class="modal-field"><label>Telefon</label><input type="text" id="editPhone"></div>
+      <div class="modal-field"><label>Firma / Name</label><input type="text" id="editCompany" oninput="scheduleDuplicateCheck()"></div>
+      <div class="modal-field"><label>Ansprechpartner</label><input type="text" id="editContact" oninput="scheduleDuplicateCheck()"></div>
+      <div class="modal-field"><label>E-Mail</label><input type="text" id="editEmail" oninput="scheduleDuplicateCheck()"></div>
+      <div class="modal-field"><label>Telefon</label><input type="text" id="editPhone" oninput="scheduleDuplicateCheck()"></div>
     </div>
     <div class="modal-field">
       <label>Status</label>
@@ -298,8 +312,14 @@
 
 <div class="main">
   <div class="sidebar hidden" id="sidebar">
-    <div class="sidebar-header" id="sidebarHeader">Kontakte</div>
-    <div class="sidebar-actions">
+    <div class="sidebar-header">
+      <span id="sidebarHeader">Kontakte</span>
+      <div class="sidebar-header-tabs">
+        <span class="sidebar-header-tab active" id="tabContactsBtn" onclick="switchSidebarTab('contacts')">Aktiv</span>
+        <span class="sidebar-header-tab" id="tabTrashBtn" onclick="switchSidebarTab('trash')">Papierkorb</span>
+      </div>
+    </div>
+    <div class="sidebar-actions" id="sidebarActionsRow">
       <button class="sidebar-action-btn" onclick="exportCSV()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export
@@ -354,6 +374,10 @@ var BACKEND_URL = "https://kundendb.onrender.com";
 var audioEl = document.getElementById('audioPlayer');
 var currentLang = "de";
 var allContacts = [];
+var trashContacts = [];
+var sidebarTab = "contacts";
+var dupCheckTimer = null;
+var lastDupSignature = "";
 var sidebarVisible = false;
 var voiceMode = false;
 var conversationHistory = [];
@@ -455,7 +479,7 @@ function selectWorkspace(ws, closeDropdown) {
     if (opt) opt.classList.add('active');
     document.getElementById('sidebarHeader').textContent = ws.name;
     clearHistory();
-    if (sidebarVisible) loadContacts();
+    if (sidebarVisible) refreshSidebar();
   }
   if (closeDropdown) document.getElementById('workspaceDropdown').classList.remove('open');
 }
@@ -477,7 +501,7 @@ function toggleSidebar() {
   document.getElementById('sidebarToggle').classList.toggle('active', sidebarVisible);
   var overlay = document.getElementById('sidebarOverlay');
   if (window.innerWidth <= 600) overlay.style.display = sidebarVisible ? 'block' : 'none';
-  if (sidebarVisible) loadContacts();
+  if (sidebarVisible) refreshSidebar();
 }
 
 function clearHistory() {
@@ -543,16 +567,29 @@ function sendMessage() {
     if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
     var msgDiv = addMessage('assistant', reply);
     if (wasVoice) { var btn = msgDiv.querySelector('.speak-btn'); if (btn) speakText(btn); }
-    if (sidebarVisible) loadContacts();
+    if (sidebarVisible) refreshSidebar();
   }).catch(function() { removeTyping(); addMessage('assistant', 'Verbindungsfehler - bitte erneut versuchen.'); })
   .finally(function() { document.getElementById('sendBtn').disabled = false; document.getElementById('messageInput').focus(); });
+}
+
+function refreshSidebar() {
+  if (sidebarTab === 'trash') loadTrash(); else loadContacts();
+}
+
+function switchSidebarTab(tab) {
+  sidebarTab = tab;
+  document.getElementById('tabContactsBtn').classList.toggle('active', tab === 'contacts');
+  document.getElementById('tabTrashBtn').classList.toggle('active', tab === 'trash');
+  document.getElementById('sidebarActionsRow').style.display = (tab === 'contacts') ? 'flex' : 'none';
+  document.getElementById('searchInput').value = '';
+  refreshSidebar();
 }
 
 function loadContacts() {
   var url = BACKEND_URL + "/contacts";
   if (currentWorkspace) url += "?workspace_id=" + currentWorkspace.id;
   fetch(url).then(function(res) { return res.json(); }).then(function(data) {
-    allContacts = data; renderContacts(allContacts);
+    allContacts = data; if (sidebarTab === 'contacts') renderContacts(allContacts);
   }).catch(function() { document.getElementById('contactsList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Nicht erreichbar</div>'; });
 }
 
@@ -568,16 +605,112 @@ function renderContacts(contacts) {
       '<div class="contact-name">' + (c.contact_name || '') + '</div></div>' +
       '<div class="contact-actions always">' +
       '<button class="contact-action-btn" onclick="openEdit(\'' + c.id + '\')" title="Bearbeiten">&#9998;</button>' +
-      '<button class="contact-action-btn delete" onclick="deleteContact(\'' + c.id + '\', \'' + name + '\')" title="Loeschen">&#10005;</button>' +
+      '<button class="contact-action-btn delete" onclick="deleteContact(\'' + c.id + '\', \'' + name + '\')" title="In Papierkorb">&#10005;</button>' +
       '</div></div>' +
       (c.status ? '<div class="contact-status ' + statusClass + '">' + c.status + '</div>' : '') +
       '</div>';
   }).join('');
 }
 
+// ── Papierkorb ───────────────────────────────────────────────────────────────
+
+function loadTrash() {
+  var url = BACKEND_URL + "/contacts/trash";
+  if (currentWorkspace) url += "?workspace_id=" + currentWorkspace.id;
+  document.getElementById('contactsList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Wird geladen...</div>';
+  fetch(url).then(function(res) { return res.json(); }).then(function(data) {
+    trashContacts = Array.isArray(data) ? data : [];
+    if (sidebarTab === 'trash') renderTrash(trashContacts);
+  }).catch(function() { document.getElementById('contactsList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Nicht erreichbar</div>'; });
+}
+
+function renderTrash(contacts) {
+  var list = document.getElementById('contactsList');
+  if (!contacts || !contacts.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Papierkorb ist leer</div>'; return; }
+  list.innerHTML = contacts.map(function(c) {
+    var name = (c.company_name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    var when = c.deleted_at ? new Date(c.deleted_at).toLocaleDateString('de-DE') : '';
+    return '<div class="contact-card"><div class="contact-top">' +
+      '<div class="contact-info">' +
+      '<div class="contact-company">' + (c.company_name || '-') + '</div>' +
+      '<div class="contact-name">' + (c.contact_name || '') + '</div>' +
+      '<div class="trash-meta">Gelöscht am ' + when + '</div>' +
+      '</div>' +
+      '<div class="contact-actions always">' +
+      '<button class="contact-action-btn restore" onclick="restoreContact(\'' + c.id + '\')" title="Wiederherstellen">&#8634;</button>' +
+      '<button class="contact-action-btn delete" onclick="permanentlyDeleteContact(\'' + c.id + '\', \'' + name + '\')" title="Endgültig löschen">&#10005;</button>' +
+      '</div></div>' +
+      '</div>';
+  }).join('');
+}
+
+function restoreContact(id) {
+  fetch(BACKEND_URL + "/contacts/" + id + "/restore", { method: 'POST' }).then(function(res) {
+    if (res.ok) { trashContacts = trashContacts.filter(function(c) { return c.id !== id; }); renderTrash(trashContacts); }
+    else alert('Fehler beim Wiederherstellen.');
+  }).catch(function() { alert('Verbindungsfehler.'); });
+}
+
+function permanentlyDeleteContact(id, name) {
+  if (!confirm('"' + name + '" endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return;
+  fetch(BACKEND_URL + "/contacts/" + id + "/permanent", { method: 'DELETE' }).then(function(res) {
+    if (res.ok) { trashContacts = trashContacts.filter(function(c) { return c.id !== id; }); renderTrash(trashContacts); }
+    else alert('Fehler beim endgültigen Löschen.');
+  }).catch(function() { alert('Verbindungsfehler.'); });
+}
+
+// ── Duplikat-Prüfung ───────────────────────────────────────────────────────────
+
+function scheduleDuplicateCheck() {
+  clearTimeout(dupCheckTimer);
+  dupCheckTimer = setTimeout(runDuplicateCheck, 500);
+}
+
+function runDuplicateCheck() {
+  var company = document.getElementById('editCompany').value.trim();
+  var contact = document.getElementById('editContact').value.trim();
+  var phone = document.getElementById('editPhone').value.trim();
+  var email = document.getElementById('editEmail').value.trim();
+  var editId = document.getElementById('editId').value;
+
+  var signature = company + '|' + contact + '|' + phone + '|' + email;
+  if (signature === lastDupSignature) return;
+  lastDupSignature = signature;
+
+  if (!company && !phone && !email) { hideDupWarning(); return; }
+
+  fetch(BACKEND_URL + "/contacts/check-duplicate", {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      company_name: company, contact_name: contact, phone: phone, email: email,
+      workspace_id: currentWorkspace ? currentWorkspace.id : null,
+      exclude_id: editId || null
+    })
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    var dups = (data && data.duplicates) || [];
+    if (dups.length) showDupWarning(dups); else hideDupWarning();
+  }).catch(function() { /* Duplikat-Check darf nie blockieren */ });
+}
+
+function showDupWarning(dups) {
+  var list = document.getElementById('dupWarningList');
+  list.innerHTML = dups.map(function(d) {
+    return '<div class="dup-warning-item"><strong>' + (d.company_name || '–') + '</strong>' +
+      (d.contact_name ? ' · ' + d.contact_name : '') +
+      '<br><span style="opacity:0.75">' + (d.reason || '') + '</span></div>';
+  }).join('');
+  document.getElementById('dupWarning').classList.add('visible');
+}
+
+function hideDupWarning() {
+  document.getElementById('dupWarning').classList.remove('visible');
+}
+
 function filterContacts() {
   var q = document.getElementById('searchInput').value.toLowerCase();
-  renderContacts(allContacts.filter(function(c) { return (c.company_name||'').toLowerCase().includes(q) || (c.contact_name||'').toLowerCase().includes(q); }));
+  var source = sidebarTab === 'trash' ? trashContacts : allContacts;
+  var filtered = source.filter(function(c) { return (c.company_name||'').toLowerCase().includes(q) || (c.contact_name||'').toLowerCase().includes(q); });
+  if (sidebarTab === 'trash') renderTrash(filtered); else renderContacts(filtered);
 }
 
 function askAbout(company) {
@@ -588,10 +721,10 @@ function askAbout(company) {
 }
 
 function deleteContact(id, name) {
-  if (!confirm('"' + name + '" wirklich loeschen?')) return;
+  if (!confirm('"' + name + '" in den Papierkorb verschieben?')) return;
   fetch(BACKEND_URL + "/contacts/" + id, { method: 'DELETE' }).then(function(res) {
     if (res.ok) { allContacts = allContacts.filter(function(c) { return c.id !== id; }); renderContacts(allContacts); }
-    else alert('Fehler beim Loeschen.');
+    else alert('Fehler beim Löschen.');
   }).catch(function() { alert('Verbindungsfehler.'); });
 }
 
@@ -665,6 +798,8 @@ function openEdit(id) {
   document.getElementById('editPhone').value = c.phone || '';
   document.getElementById('editStatus').value = c.status || 'interessiert';
   document.getElementById('editNotes').value = c.notes || '';
+  hideDupWarning();
+  lastDupSignature = (c.company_name||'') + '|' + (c.contact_name||'') + '|' + (c.phone||'') + '|' + (c.email||'');
   renderCustomFields(c);
   loadContactImages(c.id);
   document.getElementById('editModal').classList.add('visible');
