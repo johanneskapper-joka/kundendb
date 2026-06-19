@@ -153,6 +153,17 @@
   .image-thumb-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border: none; border-radius: 6px; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
   .image-thumb-del:hover { background: var(--danger); }
   .image-empty { font-size: 11px; color: var(--text-muted); padding: 4px 0; }
+  .file-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+  .file-empty { font-size: 11px; color: var(--text-muted); padding: 4px 0; }
+  .file-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; }
+  .file-icon { font-size: 16px; flex-shrink: 0; }
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 13px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-name a { color: var(--text); text-decoration: none; }
+  .file-name a:hover { text-decoration: underline; }
+  .file-size { font-size: 11px; color: var(--text-muted); }
+  .file-del { width: 26px; height: 26px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px; flex-shrink: 0; }
+  .file-del:hover { background: #fde8e8; color: var(--danger); }
 
   /* Chat */
   .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
@@ -263,6 +274,15 @@
       <span class="image-upload-status" id="imageUploadStatus"></span>
     </div>
     <div class="image-grid" id="imageGrid"></div>
+    <div class="modal-section-title">Dateien</div>
+    <div class="image-upload-row">
+      <label class="image-upload-btn">
+        &#43; Datei hinzuf&uuml;gen
+        <input type="file" id="fileUploadInput" multiple style="display:none" onchange="uploadFiles(this)">
+      </label>
+      <span class="image-upload-status" id="fileUploadStatus"></span>
+    </div>
+    <div class="file-list" id="fileList"></div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">Abbrechen</button>
       <button class="btn-primary" onclick="saveContact()">Speichern</button>
@@ -802,6 +822,7 @@ function openEdit(id) {
   lastDupSignature = (c.company_name||'') + '|' + (c.contact_name||'') + '|' + (c.phone||'') + '|' + (c.email||'');
   renderCustomFields(c);
   loadContactImages(c.id);
+  loadContactFiles(c.id);
   document.getElementById('editModal').classList.add('visible');
 }
 
@@ -882,6 +903,92 @@ function deleteImage(imageId) {
   var contactId = document.getElementById('editId').value;
   fetch(BACKEND_URL + "/images/" + imageId, { method: 'DELETE' })
     .then(function(r) { if (r.ok) loadContactImages(contactId); else alert('Fehler beim Löschen.'); })
+    .catch(function() { alert('Verbindungsfehler.'); });
+}
+
+// ── Dateien zu Kontakten ──────────────────────────────────────────────────────
+
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function fileIcon(name, type) {
+  var n = (name || '').toLowerCase();
+  if (n.match(/\.(pdf)$/)) return '📄';
+  if (n.match(/\.(docx?|odt|rtf)$/)) return '📝';
+  if (n.match(/\.(xlsx?|ods|csv)$/)) return '📊';
+  if (n.match(/\.(pptx?|odp)$/)) return '📑';
+  if (n.match(/\.(zip|rar|7z|tar|gz)$/)) return '🗜️';
+  if (n.match(/\.(jpe?g|png|gif|webp|heic|heif|bmp|svg)$/)) return '🖼️';
+  if (n.match(/\.(mp3|wav|ogg|m4a|flac)$/)) return '🎵';
+  if (n.match(/\.(mp4|mov|avi|mkv|webm)$/)) return '🎬';
+  if (n.match(/\.(txt|md)$/)) return '📃';
+  return '📎';
+}
+
+function loadContactFiles(contactId) {
+  var list = document.getElementById('fileList');
+  var status = document.getElementById('fileUploadStatus');
+  if (status) status.textContent = '';
+  list.innerHTML = '<div class="file-empty">Wird geladen…</div>';
+  fetch(BACKEND_URL + "/contacts/" + contactId + "/files")
+    .then(function(r) { return r.json(); })
+    .then(function(files) { renderFiles(files || []); })
+    .catch(function() { list.innerHTML = '<div class="file-empty">Dateien nicht erreichbar</div>'; });
+}
+
+function renderFiles(files) {
+  var list = document.getElementById('fileList');
+  if (!files.length) { list.innerHTML = '<div class="file-empty">Noch keine Dateien</div>'; return; }
+  list.innerHTML = files.map(function(f) {
+    var safeUrl = (f.url || '').replace(/'/g, "%27");
+    var name = (f.filename || 'Datei');
+    return '<div class="file-row">' +
+      '<span class="file-icon">' + fileIcon(name, f.content_type) + '</span>' +
+      '<div class="file-info">' +
+      '<div class="file-name"><a href="' + safeUrl + '" target="_blank" rel="noopener" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</a></div>' +
+      '<div class="file-size">' + formatFileSize(f.size_bytes) + '</div>' +
+      '</div>' +
+      '<button class="file-del" title="Löschen" onclick="deleteFile(\'' + f.id + '\')">&#10005;</button>' +
+      '</div>';
+  }).join('');
+}
+
+function uploadFiles(input) {
+  var contactId = document.getElementById('editId').value;
+  if (!contactId) { alert('Bitte zuerst einen Kontakt öffnen.'); return; }
+  var files = Array.prototype.slice.call(input.files);
+  if (!files.length) return;
+  var status = document.getElementById('fileUploadStatus');
+  var done = 0, failed = 0;
+  status.textContent = 'Lädt hoch… (0/' + files.length + ')';
+  var chain = Promise.resolve();
+  files.forEach(function(file) {
+    chain = chain.then(function() {
+      var fd = new FormData();
+      fd.append('file', file, file.name);
+      return fetch(BACKEND_URL + "/contacts/" + contactId + "/files", { method: 'POST', body: fd })
+        .then(function(r) { if (r.ok) done++; else failed++; })
+        .catch(function() { failed++; })
+        .then(function() { status.textContent = 'Lädt hoch… (' + (done + failed) + '/' + files.length + ')'; });
+    });
+  });
+  chain.then(function() {
+    status.textContent = failed ? (done + ' hochgeladen, ' + failed + ' fehlgeschlagen') : 'Fertig ✓';
+    input.value = '';
+    loadContactFiles(contactId);
+    setTimeout(function() { if (status) status.textContent = ''; }, 3000);
+  });
+}
+
+function deleteFile(fileId) {
+  if (!confirm('Datei wirklich löschen?')) return;
+  var contactId = document.getElementById('editId').value;
+  fetch(BACKEND_URL + "/files/" + fileId, { method: 'DELETE' })
+    .then(function(r) { if (r.ok) loadContactFiles(contactId); else alert('Fehler beim Löschen.'); })
     .catch(function() { alert('Verbindungsfehler.'); });
 }
 
