@@ -329,7 +329,7 @@ Du hast Zugriff auf eine Datenbank und kannst:
 - Informationen abrufen und zusammenfassen
 - In der Sprache des Nutzers antworten (Deutsch, Französisch, Englisch)
 
-Kern-Felder: company_name (PFLICHT), contact_name, email, phone, language, notes, last_contact, status (aktiv/interessiert/inaktiv)
+Kern-Felder: company_name (PFLICHT), contact_name, email, phone, language, notes, last_contact, status (aktiv/interessiert/inaktiv), rating (ABC-Klassifizierung: A, B oder C)
 {custom_fields_info}
 
 REGEL 1 – IMMER sofort speichern:
@@ -345,6 +345,7 @@ REGEL 2 – db_action Format:
   "notes_append": "nur wenn Info nicht in custom_fields passt",
   "status": "aktiv/interessiert/inaktiv oder leer lassen",
   "last_contact": "YYYY-MM-DD oder leer lassen",
+  "rating": "A, B, C oder leer lassen",
   "custom_fields": {{
     "key": "value"
   }}
@@ -465,6 +466,11 @@ async def chat(req: ChatRequest, request: Request):
                         merged_cf = {**existing_cf, **action_data.get("custom_fields")}
                         update_payload["custom_fields"] = merged_cf
 
+                    # ABC-Klassifizierung, falls die KI eine setzt
+                    rating_val = normalize_rating(action_data.get("rating"))
+                    if rating_val:
+                        update_payload["rating"] = rating_val
+
                     if existing.data:
                         old_notes = existing.data[0].get("notes", "") or ""
                         new_note = action_data.get("notes_append", "")
@@ -477,6 +483,7 @@ async def chat(req: ChatRequest, request: Request):
                                      user_id=_a_uid, user_name=_a_uname)
                     else:
                         update_payload["notes"] = action_data.get("notes_append", "")
+                        update_payload["contact_no"] = generate_contact_no(req.workspace_id)
                         supabase.table("contacts").insert(update_payload).execute()
                         _a_uid, _a_uname = get_actor(request)
                         log_activity("create", contact_name=action_data.get("company_name"),
@@ -683,6 +690,29 @@ def get_user_role(request: Request) -> str:
         return session.get("role", "read")
     return "change"  # Spielwiese ohne Login: voller Zugriff, wie bisher
 
+def generate_contact_no(workspace_id):
+    """Erzeugt eine 6-stellige Zufallsnummer, die im jeweiligen Workspace noch nicht vergeben ist."""
+    import random
+    for _ in range(50):
+        candidate = random.randint(100000, 999999)
+        query = supabase.table("contacts").select("id").eq("contact_no", candidate)
+        if workspace_id:
+            query = query.eq("workspace_id", workspace_id)
+        else:
+            query = query.is_("workspace_id", "null")
+        existing = query.execute()
+        if not existing.data:
+            return candidate
+    # Sehr unwahrscheinlicher Fallback
+    return random.randint(100000, 999999)
+
+def normalize_rating(value):
+    """Lässt nur A, B, C zu – alles andere wird zu None (keine Klassifizierung)."""
+    if value is None:
+        return None
+    v = str(value).strip().upper()
+    return v if v in ("A", "B", "C") else None
+
 # ─────────────────────────────────────────
 # WORKSPACES & CONTACTS
 # ─────────────────────────────────────────
@@ -706,6 +736,12 @@ async def create_contact(request: Request):
         body = await request.json()
         if not body.get("company_name", "").strip():
             return JSONResponse({"error": "company_name required"}, status_code=400)
+        # ABC-Klassifizierung absichern
+        if "rating" in body:
+            body["rating"] = normalize_rating(body.get("rating"))
+        # Eindeutige Nummer vergeben, falls keine mitgegeben wurde
+        if not body.get("contact_no"):
+            body["contact_no"] = generate_contact_no(body.get("workspace_id"))
         body["created_at"] = datetime.utcnow().isoformat()
         body["updated_at"] = datetime.utcnow().isoformat()
         result = supabase.table("contacts").insert(body).execute()
@@ -745,6 +781,23 @@ async def bulk_import_contact(request: Request):
         if clean("status"): payload["status"] = clean("status")
         if clean("notes"): payload["notes"] = clean("notes")
 
+        # ABC-Klassifizierung aus dem Import übernehmen (falls vorhanden)
+        rating_val = normalize_rating(body.get("rating") or body.get("klassifizierung") or body.get("abc"))
+        if rating_val:
+            payload["rating"] = rating_val
+
+        # Eindeutige Nummer: aus der Datei übernehmen, falls vorhanden
+        raw_no = body.get("contact_no") or body.get("nummer") or body.get("nr") or ""
+        imported_no = None
+        try:
+            digits = re.sub(r'[^\d]', '', str(raw_no))
+            if digits:
+                imported_no = int(digits)
+        except (ValueError, TypeError):
+            imported_no = None
+        if imported_no:
+            payload["contact_no"] = imported_no
+
         last_contact = clean("last_contact")
         if last_contact:
             import re as re2
@@ -755,8 +808,13 @@ async def bulk_import_contact(request: Request):
                 payload["last_contact"] = last_contact
 
         if existing.data:
+            # Bestehenden Kontakt aktualisieren – vorhandene Nummer nur überschreiben,
+            # wenn die Datei explizit eine mitbringt (sonst unverändert lassen).
             supabase.table("contacts").update(payload).eq("id", existing.data[0]["id"]).execute()
         else:
+            # Neuer Kontakt: keine Nummer aus Datei -> automatisch eine vergeben
+            if not payload.get("contact_no"):
+                payload["contact_no"] = generate_contact_no(workspace_id)
             supabase.table("contacts").insert(payload).execute()
 
         uid, uname = get_actor(request)
@@ -788,6 +846,22 @@ async def delete_contact(contact_id: str, request: Request):
 async def update_contact(contact_id: str, request: Request):
     try:
         body = await request.json()
+        # ABC-Klassifizierung absichern
+        if "rating" in body:
+            body["rating"] = normalize_rating(body.get("rating"))
+        # Die eindeutige Nummer darf nur ein Admin über die Oberfläche ändern.
+        if "contact_no" in body:
+            role = get_user_role(request)
+            if role != "admin":
+                body.pop("contact_no", None)
+            else:
+                # Leere Nummer ignorieren (Nummer soll nie gelöscht werden)
+                raw = body.get("contact_no")
+                digits = re.sub(r'[^\d]', '', str(raw if raw is not None else ""))
+                if digits:
+                    body["contact_no"] = int(digits)
+                else:
+                    body.pop("contact_no", None)
         body["updated_at"] = datetime.utcnow().isoformat()
         supabase.table("contacts").update(body).eq("id", contact_id).execute()
         uid, uname = get_actor(request)
