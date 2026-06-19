@@ -243,6 +243,20 @@
   .img-del:hover { background: var(--red); }
   .img-empty, .img-hint { font-size: 12px; color: var(--text3); padding: 4px 0; }
 
+  /* DATEIEN */
+  #c-file-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .file-list { display: flex; flex-direction: column; gap: 6px; }
+  .file-empty { font-size: 12px; color: var(--text3); padding: 4px 0; }
+  .file-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); }
+  .file-icon { font-size: 16px; flex-shrink: 0; }
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-name a { color: var(--text); text-decoration: none; }
+  .file-name a:hover { text-decoration: underline; }
+  .file-size { font-size: 11px; color: var(--text2); }
+  .file-del { width: 26px; height: 26px; border: none; border-radius: 6px; background: transparent; color: var(--text2); cursor: pointer; font-size: 13px; flex-shrink: 0; }
+  .file-del:hover { background: #fde8e8; color: var(--red); }
+
   /* TOAST */
   #toast {
     position: fixed; bottom: 24px; right: 24px; z-index: 999;
@@ -469,6 +483,17 @@
       </div>
       <div class="img-grid" id="c-image-grid"></div>
       <div class="img-hint" id="c-image-hint" style="display:none">Bitte zuerst speichern, dann können Bilder hinzugefügt werden.</div>
+    </div>
+    <div class="field" id="c-files-field">
+      <label>Dateien</label>
+      <div id="c-file-controls">
+        <label class="img-add-btn">+ Datei hinzufügen
+          <input type="file" id="c-file-input" multiple style="display:none" onchange="uploadFiles(this)">
+        </label>
+        <span class="img-status" id="c-file-status"></span>
+      </div>
+      <div class="file-list" id="c-file-list"></div>
+      <div class="img-hint" id="c-file-hint" style="display:none">Bitte zuerst speichern, dann können Dateien hinzugefügt werden.</div>
     </div>
     <div class="modal-footer">
       <button class="btn-danger" id="c-delete-btn" onclick="deleteContact()" style="display:none">Löschen</button>
@@ -826,10 +851,11 @@ function openContactModal(c) {
   document.querySelector('#contact-modal .btn-primary').style.display = canChange ? '' : 'none';
   setupImagesField(true);
   loadImages(c.id);
+  loadFiles(c.id);
   document.getElementById('contact-modal').classList.add('open');
 }
 
-// Bilder-Bereich je nach Situation ein-/ausblenden
+// Bilder- und Datei-Bereich je nach Situation ein-/ausblenden
 function setupImagesField(hasId) {
   const canChange = session && session.role !== 'read';
   document.getElementById('c-image-controls').style.display = (hasId && canChange) ? 'flex' : 'none';
@@ -837,6 +863,12 @@ function setupImagesField(hasId) {
   document.getElementById('c-image-hint').style.display = hasId ? 'none' : 'block';
   document.getElementById('c-image-status').textContent = '';
   if (!hasId) document.getElementById('c-image-grid').innerHTML = '';
+  // Dateien analog
+  document.getElementById('c-file-controls').style.display = (hasId && canChange) ? 'flex' : 'none';
+  document.getElementById('c-file-list').style.display = hasId ? 'flex' : 'none';
+  document.getElementById('c-file-hint').style.display = hasId ? 'none' : 'block';
+  document.getElementById('c-file-status').textContent = '';
+  if (!hasId) document.getElementById('c-file-list').innerHTML = '';
 }
 
 async function saveContact() {
@@ -932,6 +964,95 @@ function deleteImage(imageId) {
   if (!confirm('Bild wirklich löschen?')) return;
   fetch(`${API}/images/${imageId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
     .then(r => { if (r.ok) loadImages(editContactId); else showToast('Fehler beim Löschen', 'error'); })
+    .catch(() => showToast('Verbindungsfehler', 'error'));
+}
+
+// ── DATEIEN ──
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function fileIcon(name) {
+  const n = (name || '').toLowerCase();
+  if (n.match(/\.(pdf)$/)) return '📄';
+  if (n.match(/\.(docx?|odt|rtf)$/)) return '📝';
+  if (n.match(/\.(xlsx?|ods|csv)$/)) return '📊';
+  if (n.match(/\.(pptx?|odp)$/)) return '📑';
+  if (n.match(/\.(zip|rar|7z|tar|gz)$/)) return '🗜️';
+  if (n.match(/\.(jpe?g|png|gif|webp|heic|heif|bmp|svg)$/)) return '🖼️';
+  if (n.match(/\.(mp3|wav|ogg|m4a|flac)$/)) return '🎵';
+  if (n.match(/\.(mp4|mov|avi|mkv|webm)$/)) return '🎬';
+  if (n.match(/\.(txt|md)$/)) return '📃';
+  return '📎';
+}
+
+function escapeAttr(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function loadFiles(contactId) {
+  const list = document.getElementById('c-file-list');
+  document.getElementById('c-file-status').textContent = '';
+  list.innerHTML = '<div class="file-empty">Wird geladen…</div>';
+  fetch(`${API}/contacts/${contactId}/files`, { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => r.json())
+    .then(files => renderFiles(files || []))
+    .catch(() => { list.innerHTML = '<div class="file-empty">Dateien nicht erreichbar</div>'; });
+}
+
+function renderFiles(files) {
+  const list = document.getElementById('c-file-list');
+  const canChange = session && session.role !== 'read';
+  if (!files.length) { list.innerHTML = '<div class="file-empty">Noch keine Dateien</div>'; return; }
+  list.innerHTML = files.map(f => {
+    const safeUrl = (f.url || '').replace(/'/g, '%27');
+    const name = f.filename || 'Datei';
+    const delBtn = canChange
+      ? `<button class="file-del" title="Löschen" onclick="deleteFile('${f.id}')">✕</button>`
+      : '';
+    return '<div class="file-row">' +
+      '<span class="file-icon">' + fileIcon(name) + '</span>' +
+      '<div class="file-info">' +
+      '<div class="file-name"><a href="' + safeUrl + '" target="_blank" rel="noopener" title="' + escapeAttr(name) + '">' + escapeAttr(name) + '</a></div>' +
+      '<div class="file-size">' + formatFileSize(f.size_bytes) + '</div>' +
+      '</div>' + delBtn +
+      '</div>';
+  }).join('');
+}
+
+function uploadFiles(input) {
+  if (!editContactId) { showToast('Bitte zuerst speichern', 'error'); return; }
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const status = document.getElementById('c-file-status');
+  let done = 0, failed = 0;
+  status.textContent = `Lädt hoch… (0/${files.length})`;
+  let chain = Promise.resolve();
+  files.forEach(file => {
+    chain = chain.then(() => {
+      const fd = new FormData();
+      fd.append('file', file, file.name);
+      return fetch(`${API}/contacts/${editContactId}/files`, { method: 'POST', body: fd, headers: { Authorization: `Bearer ${token}` } })
+        .then(r => { if (r.ok) done++; else failed++; })
+        .catch(() => { failed++; })
+        .then(() => { status.textContent = `Lädt hoch… (${done+failed}/${files.length})`; });
+    });
+  });
+  chain.then(() => {
+    status.textContent = failed ? `${done} hochgeladen, ${failed} fehlgeschlagen` : 'Fertig ✓';
+    input.value = '';
+    loadFiles(editContactId);
+    setTimeout(() => { status.textContent = ''; }, 3000);
+  });
+}
+
+function deleteFile(fileId) {
+  if (!confirm('Datei wirklich löschen?')) return;
+  fetch(`${API}/files/${fileId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    .then(r => { if (r.ok) loadFiles(editContactId); else showToast('Fehler beim Löschen', 'error'); })
     .catch(() => showToast('Verbindungsfehler', 'error'));
 }
 
