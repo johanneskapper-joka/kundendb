@@ -855,6 +855,15 @@ async def permanently_delete_contact(contact_id: str, request: Request):
             supabase_admin.table("contact_images").delete().eq("contact_id", contact_id).execute()
         except Exception as e:
             print(f"Image cleanup error: {e}")
+        # Zugehörige Dateien mit aufräumen (DB-Einträge + Dateien im Storage)
+        try:
+            fls = supabase_admin.table("contact_files").select("storage_path").eq("contact_id", contact_id).execute()
+            fpaths = [i["storage_path"] for i in (fls.data or []) if i.get("storage_path")]
+            if fpaths:
+                supabase_admin.storage.from_(FILE_BUCKET).remove(fpaths)
+            supabase_admin.table("contact_files").delete().eq("contact_id", contact_id).execute()
+        except Exception as e:
+            print(f"File cleanup error: {e}")
         supabase.table("contacts").delete().eq("id", contact_id).execute()
         uid, uname = get_actor(request)
         log_activity("permanent_delete", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
@@ -873,6 +882,15 @@ async def permanently_delete_contact(contact_id: str, request: Request):
 IMAGE_BUCKET = "contact-images"
 ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# Datei-Anhänge: gleicher Bucket wie Bilder, eigene DB-Tabelle "contact_files".
+# Fast alle Dateitypen erlaubt – nur potenziell ausführbare/gefährliche werden blockiert.
+FILE_BUCKET = "contact-images"
+MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
+BLOCKED_FILE_EXTENSIONS = [
+    ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".pif",
+    ".sh", ".app", ".jar", ".js", ".vbs", ".ps1", ".dll"
+]
 
 def _signed_url(storage_path: str, expires: int = 3600) -> str:
     """Erzeugt einen zeitlich begrenzten Link für eine Datei im privaten Bucket."""
@@ -994,6 +1012,110 @@ async def get_activity_log(workspace_id: str = None, limit: int = 200):
         return result.data
     except Exception as e:
         print(f"Activity log read error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ─────────────────────────────────────────
+# CONTACT FILES (Dateien zu Kontakten)
+# ─────────────────────────────────────────
+# Dateien liegen im selben privaten Bucket wie die Bilder ("contact-images"),
+# aber unter dem Unterpfad "files/". In der DB-Tabelle "contact_files" steht nur der Pfad.
+# Beim Abrufen erzeugt der Server kurzlebige, signierte Links (1 Stunde gültig).
+
+def _file_extension(name: str) -> str:
+    return os.path.splitext(name or "")[1].lower()
+
+@app.get("/contacts/{contact_id}/files")
+async def list_contact_files(contact_id: str):
+    try:
+        result = supabase_admin.table("contact_files")\
+            .select("*").eq("contact_id", contact_id).order("created_at").execute()
+        files = result.data or []
+        for f in files:
+            f["url"] = _signed_url(f.get("storage_path", ""))
+        return files
+    except Exception as e:
+        print(f"List files error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/contacts/{contact_id}/files")
+async def upload_contact_file(contact_id: str, request: Request):
+    try:
+        form = await request.form()
+        upload = form.get("file")
+        if upload is None or not hasattr(upload, "read"):
+            return JSONResponse({"error": "Keine Datei übermittelt"}, status_code=400)
+
+        file_bytes = await upload.read()
+        if not file_bytes:
+            return JSONResponse({"error": "Leere Datei"}, status_code=400)
+        if len(file_bytes) > MAX_FILE_BYTES:
+            return JSONResponse({"error": "Datei zu groß (max. 10 MB)"}, status_code=400)
+
+        original_name = (getattr(upload, "filename", None) or "datei").strip()
+        ext = _file_extension(original_name)
+        if ext in BLOCKED_FILE_EXTENSIONS:
+            return JSONResponse({"error": f"Dateityp nicht erlaubt: {ext}"}, status_code=400)
+
+        content_type = getattr(upload, "content_type", None) or "application/octet-stream"
+        storage_path = f"files/{contact_id}/{secrets.token_hex(8)}{ext}"
+
+        supabase_admin.storage.from_(FILE_BUCKET).upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": content_type, "upsert": "true"}
+        )
+
+        row = supabase_admin.table("contact_files").insert({
+            "contact_id": contact_id,
+            "storage_path": storage_path,
+            "filename": original_name,
+            "content_type": content_type,
+            "size_bytes": len(file_bytes)
+        }).execute()
+
+        f = row.data[0]
+        f["url"] = _signed_url(storage_path)
+
+        uid, uname = get_actor(request)
+        cinfo = supabase.table("contacts").select("company_name, workspace_id").eq("id", contact_id).execute()
+        cname = cinfo.data[0]["company_name"] if cinfo.data else None
+        wsid = cinfo.data[0]["workspace_id"] if cinfo.data else None
+        log_activity("file_upload", contact_name=cname, workspace_id=wsid, contact_id=contact_id,
+                     details=original_name, user_id=uid, user_name=uname)
+        return {"success": True, "file": f}
+
+    except Exception as e:
+        print(f"File upload error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.delete("/files/{file_id}")
+async def delete_contact_file(file_id: str, request: Request):
+    try:
+        result = supabase_admin.table("contact_files").select("*").eq("id", file_id).execute()
+        cid = None
+        fname = None
+        if result.data:
+            storage_path = result.data[0].get("storage_path")
+            cid = result.data[0].get("contact_id")
+            fname = result.data[0].get("filename")
+            if storage_path:
+                try:
+                    supabase_admin.storage.from_(FILE_BUCKET).remove([storage_path])
+                except Exception as e:
+                    print(f"Storage remove error: {e}")
+        supabase_admin.table("contact_files").delete().eq("id", file_id).execute()
+        uid, uname = get_actor(request)
+        cname = None
+        wsid = None
+        if cid:
+            cinfo = supabase.table("contacts").select("company_name, workspace_id").eq("id", cid).execute()
+            if cinfo.data:
+                cname = cinfo.data[0]["company_name"]
+                wsid = cinfo.data[0]["workspace_id"]
+        log_activity("file_delete", contact_name=cname, workspace_id=wsid, contact_id=cid,
+                     details=fname, user_id=uid, user_name=uname)
+        return {"success": True}
+    except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/health")
