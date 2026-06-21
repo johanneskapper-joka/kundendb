@@ -170,6 +170,26 @@
   .file-del { width: 26px; height: 26px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px; flex-shrink: 0; }
   .file-del:hover { background: #fde8e8; color: var(--danger); }
 
+  /* LOGBUCH */
+  .log-filter { display: flex; gap: 6px; margin-bottom: 14px; }
+  .log-filter-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: 9px; padding: 8px 14px; cursor: pointer; font-size: 12px; font-weight: 500; font-family: 'Geist', sans-serif; transition: all 0.15s; }
+  .log-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .log-list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; margin-bottom: 18px; }
+  .log-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; }
+  .log-item-main { flex: 1; min-width: 0; }
+  .log-item-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .log-action { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .log-action.create { background: #e8f5ee; color: var(--success); border-color: transparent; }
+  .log-action.update { background: #e8eef8; color: #2d4a7a; border-color: transparent; }
+  .log-action.delete { background: #fdf3e0; color: #b8860b; border-color: transparent; }
+  .log-action.permanent_delete { background: #fde8e8; color: var(--danger); border-color: transparent; }
+  .log-action.restore { background: #e8f5ee; color: var(--success); border-color: transparent; }
+  .log-contact { font-size: 13px; font-weight: 500; }
+  .log-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .log-time { font-size: 11px; color: var(--text-muted); font-family: 'Geist', monospace; white-space: nowrap; flex-shrink: 0; }
+  .log-empty-msg { text-align: center; padding: 30px; color: var(--text-muted); font-size: 13px; }
+  .report-box { border-top: 1px solid var(--border); padding-top: 16px; }
+
   /* Chat */
   .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
   .messages { flex: 1; overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; -webkit-overflow-scrolling: touch; }
@@ -310,6 +330,36 @@
   </div>
 </div>
 
+<!-- LOGBUCH MODAL -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal" style="max-width:760px">
+    <h3>Logbuch</h3>
+    <div class="modal-workspace-label" id="logWorkspaceLabel"></div>
+    <div class="log-filter">
+      <button class="log-filter-btn active" id="logFilterDay" onclick="setLogPeriod('day')">Heute</button>
+      <button class="log-filter-btn" id="logFilterWeek" onclick="setLogPeriod('week')">Diese Woche</button>
+      <button class="log-filter-btn" id="logFilterMonth" onclick="setLogPeriod('month')">Dieser Monat</button>
+    </div>
+    <div class="log-list" id="logList"></div>
+    <div class="report-box">
+      <div class="modal-section-title" style="border-top:none;padding-top:0">E-Mail-Report</div>
+      <div class="modal-field">
+        <label>Empfänger-Adresse für diesen Bereich</label>
+        <input id="reportEmailInput" type="email" placeholder="name@firma.de">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn-secondary" style="flex:0 0 auto;padding:8px 14px" onclick="saveReportEmail()">Adresse speichern</button>
+        <button class="btn-primary" style="flex:0 0 auto;padding:8px 14px" onclick="sendReport()">Report senden</button>
+        <span id="reportStatus" style="font-size:12px;color:var(--text-muted)"></span>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted)">Sendet die Aktivitäten des gewählten Zeitraums an die Adresse.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeLogModal()">Schließen</button>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="logo">
     <div class="logo-mark">
@@ -337,6 +387,10 @@
     <button class="hdr-btn" id="sidebarToggle" onclick="toggleSidebar()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
       Kontakte
+    </button>
+    <button class="hdr-btn" onclick="openLogModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+      Logbuch
     </button>
     <button class="hdr-btn" onclick="clearHistory()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -429,6 +483,8 @@ var mediaRecorder = null;
 var audioChunks = [];
 var allWorkspaces = [];
 var currentWorkspace = null;
+var logPeriod = 'day';
+var logEntries = [];
 
 var savedWsId = localStorage.getItem('velo_workspace_id');
 audioEl.volume = 0.5;
@@ -872,6 +928,7 @@ function saveContact() {
 }
 
 document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+document.getElementById('logModal').addEventListener('click', function(e) { if (e.target === this) closeLogModal(); });
 
 // ── Bilder zu Kontakten ──────────────────────────────────────────────────────
 
@@ -1017,6 +1074,115 @@ function deleteFile(fileId) {
   fetch(BACKEND_URL + "/files/" + fileId, { method: 'DELETE' })
     .then(function(r) { if (r.ok) loadContactFiles(contactId); else alert('Fehler beim Löschen.'); })
     .catch(function() { alert('Verbindungsfehler.'); });
+}
+
+// ── Logbuch ────────────────────────────────────────────────────────────────────
+
+var LOG_ACTION_LABELS = {
+  create: 'Angelegt', update: 'Geändert', delete: 'In Papierkorb',
+  restore: 'Wiederhergestellt', permanent_delete: 'Endgültig gelöscht',
+  import: 'Importiert', image_upload: 'Bild hochgeladen', image_delete: 'Bild gelöscht',
+  file_upload: 'Datei hochgeladen', file_delete: 'Datei gelöscht'
+};
+
+function openLogModal() {
+  var label = document.getElementById('logWorkspaceLabel');
+  label.textContent = currentWorkspace ? ((currentWorkspace.icon || '') + ' ' + currentWorkspace.name) : '';
+  document.getElementById('reportEmailInput').value = (currentWorkspace && currentWorkspace.report_email) || '';
+  document.getElementById('reportStatus').textContent = '';
+  document.getElementById('logModal').classList.add('visible');
+  loadActivityLog();
+}
+
+function closeLogModal() { document.getElementById('logModal').classList.remove('visible'); }
+
+function setLogPeriod(period) {
+  logPeriod = period;
+  document.getElementById('logFilterDay').classList.toggle('active', period === 'day');
+  document.getElementById('logFilterWeek').classList.toggle('active', period === 'week');
+  document.getElementById('logFilterMonth').classList.toggle('active', period === 'month');
+  renderLog();
+}
+
+function logPeriodStart(period) {
+  var now = new Date();
+  if (period === 'day') { var d = new Date(now); d.setHours(0,0,0,0); return d; }
+  if (period === 'week') return new Date(now.getTime() - 7*24*60*60*1000);
+  if (period === 'month') return new Date(now.getTime() - 30*24*60*60*1000);
+  return new Date(now.getTime() - 7*24*60*60*1000);
+}
+
+function loadActivityLog() {
+  var url = BACKEND_URL + "/activity-log";
+  if (currentWorkspace) url += "?workspace_id=" + currentWorkspace.id;
+  document.getElementById('logList').innerHTML = '<div class="log-empty-msg">Wird geladen…</div>';
+  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    logEntries = Array.isArray(data) ? data : [];
+    renderLog();
+  }).catch(function() { document.getElementById('logList').innerHTML = '<div class="log-empty-msg">Nicht erreichbar</div>'; });
+}
+
+function renderLog() {
+  var start = logPeriodStart(logPeriod);
+  var filtered = logEntries.filter(function(e) {
+    if (!e.created_at) return false;
+    var t = new Date(e.created_at.replace(' ', 'T'));
+    return t >= start;
+  });
+  var list = document.getElementById('logList');
+  if (!filtered.length) { list.innerHTML = '<div class="log-empty-msg">Keine Aktivitäten in diesem Zeitraum</div>'; return; }
+  list.innerHTML = filtered.map(function(e) {
+    var when = e.created_at || '';
+    try { when = new Date(e.created_at.replace(' ', 'T')).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch(ex) {}
+    var label = LOG_ACTION_LABELS[e.action] || e.action || '';
+    var details = e.details ? '<div class="log-meta">' + escapeHtml(e.details) + '</div>' : '';
+    return '<div class="log-item">' +
+      '<div class="log-item-main">' +
+      '<div class="log-item-top">' +
+      '<span class="log-action ' + (e.action||'') + '">' + label + '</span>' +
+      '<span class="log-contact">' + escapeHtml(e.contact_name || '–') + '</span>' +
+      '</div>' +
+      '<div class="log-meta">von ' + escapeHtml(e.user_name || '–') + '</div>' +
+      details +
+      '</div>' +
+      '<span class="log-time">' + when + '</span>' +
+      '</div>';
+  }).join('');
+}
+
+function saveReportEmail() {
+  if (!currentWorkspace) { alert('Kein Bereich gewählt.'); return; }
+  var email = document.getElementById('reportEmailInput').value.trim();
+  var status = document.getElementById('reportStatus');
+  status.style.color = 'var(--text-muted)';
+  status.textContent = 'Speichert…';
+  fetch(BACKEND_URL + "/workspaces/" + currentWorkspace.id + "/report-email", {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ report_email: email })
+  }).then(function(r) {
+    if (r.ok) { status.textContent = 'Gespeichert ✓'; currentWorkspace.report_email = email || null; }
+    else status.textContent = 'Fehler beim Speichern';
+  }).catch(function() { status.textContent = 'Verbindungsfehler'; });
+}
+
+function sendReport() {
+  if (!currentWorkspace) { alert('Kein Bereich gewählt.'); return; }
+  var status = document.getElementById('reportStatus');
+  status.style.color = 'var(--text-muted)';
+  status.textContent = 'Sendet…';
+  fetch(BACKEND_URL + "/send-report", {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace_id: currentWorkspace.id, period: logPeriod })
+  }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (res.ok && res.d.success) {
+        status.style.color = 'var(--success)';
+        status.textContent = 'Gesendet an ' + res.d.recipient + ' (' + res.d.count + ' Einträge) ✓';
+      } else {
+        status.style.color = 'var(--danger)';
+        status.textContent = res.d.detail || res.d.error || 'Fehler beim Senden';
+      }
+    }).catch(function() { status.style.color = 'var(--danger)'; status.textContent = 'Verbindungsfehler'; });
 }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
