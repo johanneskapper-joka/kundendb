@@ -154,6 +154,11 @@
   .dot-aktiv { background: var(--green); }
   .dot-interessiert { background: var(--yellow); }
   .dot-inaktiv { background: var(--text3); }
+  .abc-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+  .abc-badge.A { background: #e8f5ee; color: var(--green); }
+  .abc-badge.B { background: #fdf3e0; color: #b8860b; }
+  .abc-badge.C { background: var(--surface2); color: var(--text3); }
+  .contact-no-cell { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
   .empty-state .big { font-size: 40px; margin-bottom: 12px; }
 
@@ -371,9 +376,11 @@
         <table>
           <thead>
             <tr>
+              <th>Nr.</th>
               <th>Name</th>
               <th>Ansprechpartner</th>
               <th>Status</th>
+              <th>ABC</th>
               <th>Letzter Kontakt</th>
               <th>Telefon</th>
             </tr>
@@ -464,12 +471,26 @@
     <div class="field"><label>E-Mail</label><input id="c-email" type="email" oninput="scheduleDuplicateCheck()"></div>
     <div class="field"><label>Telefon</label><input id="c-phone" type="tel" oninput="scheduleDuplicateCheck()"></div>
     <div class="field">
+      <label>Nummer</label>
+      <input id="c-contact-no" type="text">
+      <div id="c-contact-no-hint" style="font-size:11px;color:var(--text3);margin-top:4px;display:none">Nur Admin kann die Nummer ändern.</div>
+    </div>
+    <div class="field">
       <label>Status</label>
       <select id="c-status">
         <option value="">– wählen –</option>
         <option value="aktiv">Aktiv</option>
         <option value="interessiert">Interessiert</option>
         <option value="inaktiv">Inaktiv</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Klassifizierung</label>
+      <select id="c-rating">
+        <option value="">– keine –</option>
+        <option value="A">A</option>
+        <option value="B">B</option>
+        <option value="C">C</option>
       </select>
     </div>
     <div class="field"><label>Notizen</label><input id="c-notes" type="text"></div>
@@ -808,10 +829,13 @@ function renderContacts() {
   filtered.forEach(c => {
     const tr = document.createElement('tr');
     const statusDot = c.status === 'aktiv' ? 'dot-aktiv' : c.status === 'interessiert' ? 'dot-interessiert' : 'dot-inaktiv';
+    const abc = c.rating ? `<span class="abc-badge ${c.rating}">${c.rating}</span>` : '–';
     tr.innerHTML = `
+      <td class="contact-no-cell">${c.contact_no || '–'}</td>
       <td><strong>${c.company_name||''}</strong></td>
       <td>${c.contact_name||'–'}</td>
       <td><span class="status-dot"><span class="dot ${statusDot}"></span>${c.status||'–'}</span></td>
+      <td>${abc}</td>
       <td>${c.last_contact ? new Date(c.last_contact).toLocaleDateString('de-DE') : '–'}</td>
       <td style="font-family:'DM Mono',monospace;font-size:13px">${c.phone||'–'}</td>`;
     tr.onclick = () => openContactModal(c);
@@ -824,6 +848,11 @@ function openNewContact() {
   document.getElementById('contact-modal-title').textContent = 'Neuer Kontakt';
   ['c-company','c-contact','c-email','c-phone','c-notes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('c-status').value = '';
+  document.getElementById('c-rating').value = '';
+  document.getElementById('c-contact-no').value = '';
+  document.getElementById('c-contact-no').placeholder = 'wird automatisch vergeben';
+  document.getElementById('c-contact-no').disabled = true;
+  document.getElementById('c-contact-no-hint').style.display = 'none';
   document.getElementById('c-delete-btn').style.display = 'none';
   hideDupWarning();
   lastDupSignature = '';
@@ -839,15 +868,22 @@ function openContactModal(c) {
   document.getElementById('c-email').value = c.email || '';
   document.getElementById('c-phone').value = c.phone || '';
   document.getElementById('c-status').value = c.status || '';
+  document.getElementById('c-rating').value = c.rating || '';
   document.getElementById('c-notes').value = c.notes || '';
+  document.getElementById('c-contact-no').value = c.contact_no || '';
+  document.getElementById('c-contact-no').placeholder = '';
   hideDupWarning();
   lastDupSignature = (c.company_name||'') + '|' + (c.contact_name||'') + '|' + (c.phone||'') + '|' + (c.email||'');
   const canDelete = session.role === 'admin';
   const canChange = session.role !== 'read';
+  const isAdmin = session.role === 'admin';
   document.getElementById('c-delete-btn').style.display = canDelete ? '' : 'none';
-  ['c-company','c-contact','c-email','c-phone','c-status','c-notes'].forEach(id => {
+  ['c-company','c-contact','c-email','c-phone','c-status','c-rating','c-notes'].forEach(id => {
     document.getElementById(id).disabled = !canChange;
   });
+  // Nummer: nur Admin darf sie ändern
+  document.getElementById('c-contact-no').disabled = !isAdmin;
+  document.getElementById('c-contact-no-hint').style.display = isAdmin ? 'none' : 'block';
   document.querySelector('#contact-modal .btn-primary').style.display = canChange ? '' : 'none';
   setupImagesField(true);
   loadImages(c.id);
@@ -878,9 +914,15 @@ async function saveContact() {
     email: document.getElementById('c-email').value.trim(),
     phone: document.getElementById('c-phone').value.trim(),
     status: document.getElementById('c-status').value,
+    rating: document.getElementById('c-rating').value,
     notes: document.getElementById('c-notes').value.trim(),
   };
   if (!payload.company_name) { showToast('Firmenname ist Pflichtfeld', 'error'); return; }
+  // Nummer nur mitschicken, wenn Admin (Backend prüft zusätzlich)
+  if (session.role === 'admin' && editContactId) {
+    const noVal = document.getElementById('c-contact-no').value.trim();
+    if (noVal) payload.contact_no = noVal;
+  }
   try {
     if (editContactId) {
       await fetch(`${API}/contacts/${editContactId}`, {
