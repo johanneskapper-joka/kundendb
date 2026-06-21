@@ -41,6 +41,12 @@ ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 openai_client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
+# E-Mail-Reports über Resend (https://resend.com).
+# RESEND_API_KEY: API-Key aus dem Resend-Konto (beginnt mit "re_").
+# REPORT_FROM_EMAIL: Absender, muss zu einer in Resend verifizierten Domain gehören.
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+REPORT_FROM_EMAIL = os.environ.get("REPORT_FROM_EMAIL", "")
+
 VOICE_IDS = {
     "de": "1J0wWp4zPQIvsK7Xwh34",
     "fr": "E4GQ42zEV1kwul03Bl16",
@@ -1087,6 +1093,163 @@ async def get_activity_log(workspace_id: str = None, limit: int = 200):
     except Exception as e:
         print(f"Activity log read error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# ─────────────────────────────────────────
+# E-MAIL-REPORT (Activity-Log per Resend)
+# ─────────────────────────────────────────
+
+# Aktionen in lesbares Deutsch übersetzen (für Anzeige und Mail)
+ACTION_LABELS = {
+    "create": "Angelegt",
+    "update": "Geändert",
+    "delete": "In Papierkorb",
+    "restore": "Wiederhergestellt",
+    "permanent_delete": "Endgültig gelöscht",
+    "import": "Importiert",
+    "image_upload": "Bild hochgeladen",
+    "image_delete": "Bild gelöscht",
+    "file_upload": "Datei hochgeladen",
+    "file_delete": "Datei gelöscht",
+}
+
+def _period_start(period: str):
+    """Liefert den Startzeitpunkt (UTC) für 'day' (heute), 'week' (7 Tage), 'month' (30 Tage)."""
+    now = datetime.utcnow()
+    if period == "day":
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "week":
+        return now - timedelta(days=7)
+    if period == "month":
+        return now - timedelta(days=30)
+    return now - timedelta(days=7)
+
+@app.put("/workspaces/{workspace_id}/report-email")
+async def set_report_email(workspace_id: str, request: Request):
+    """Setzt die Report-Empfänger-Adresse eines Workspace.
+    Login-Version: nur Admin. Spielwiese (kein Login): erlaubt."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if session and session.get("expires") and session["expires"] >= datetime.now():
+        # eingeloggt -> muss Admin sein
+        if session.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Nur Admin darf die Report-Adresse ändern")
+    # nicht eingeloggt = Spielwiese -> erlaubt
+    try:
+        body = await request.json()
+        email = (body.get("report_email") or "").strip()
+        supabase.table("workspaces").update({"report_email": email or None}).eq("id", workspace_id).execute()
+        return {"success": True, "report_email": email or None}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/send-report")
+async def send_report(request: Request):
+    """Sendet einen Activity-Report für den gewählten Zeitraum per E-Mail (Resend).
+    Empfänger ist die im Workspace hinterlegte report_email. Nur Admin/Spielwiese."""
+    role = get_user_role(request)
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if session and session.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Nur Admin darf Reports senden")
+
+    try:
+        body = await request.json()
+        workspace_id = body.get("workspace_id")
+        period = body.get("period", "week")  # day / week / month
+
+        if not workspace_id:
+            return JSONResponse({"error": "workspace_id erforderlich"}, status_code=400)
+
+        # Workspace + Empfänger holen
+        ws_res = supabase.table("workspaces").select("*").eq("id", workspace_id).execute()
+        if not ws_res.data:
+            return JSONResponse({"error": "Workspace nicht gefunden"}, status_code=404)
+        workspace = ws_res.data[0]
+        recipient = (workspace.get("report_email") or "").strip()
+        if not recipient:
+            return JSONResponse({"error": "Keine Report-Adresse für diesen Bereich hinterlegt"}, status_code=400)
+
+        # Konfiguration prüfen
+        if not RESEND_API_KEY or not REPORT_FROM_EMAIL:
+            return JSONResponse({"error": "E-Mail-Versand ist serverseitig noch nicht konfiguriert (RESEND_API_KEY / REPORT_FROM_EMAIL fehlen)."}, status_code=400)
+
+        # Aktivitäten im Zeitraum holen
+        start = _period_start(period).isoformat()
+        query = supabase_admin.table("activity_log").select("*")\
+            .eq("workspace_id", workspace_id)\
+            .gte("created_at", start)\
+            .order("created_at", desc=True).limit(500)
+        result = query.execute()
+        entries = result.data or []
+
+        period_label = {"day": "Heute", "week": "Diese Woche", "month": "Dieser Monat"}.get(period, "Zeitraum")
+        ws_name = workspace.get("name", "")
+
+        # HTML bauen
+        rows = ""
+        for e in entries:
+            when = ""
+            try:
+                when = datetime.fromisoformat(e["created_at"].replace("Z", "")).strftime("%d.%m.%Y %H:%M")
+            except Exception:
+                when = e.get("created_at", "")
+            action = ACTION_LABELS.get(e.get("action", ""), e.get("action", ""))
+            who = e.get("user_name") or "—"
+            what = e.get("contact_name") or "—"
+            details = e.get("details") or ""
+            rows += f"""<tr>
+                <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;color:#555">{when}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px"><strong>{action}</strong></td>
+                <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px">{what}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;color:#555">{who}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;color:#888">{details}</td>
+            </tr>"""
+
+        if not rows:
+            rows = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#999;font-size:13px">Keine Aktivitäten in diesem Zeitraum.</td></tr>'
+
+        html = f"""<div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto">
+            <h2 style="font-size:18px;color:#1a1a1a;margin-bottom:4px">velojo.ai – Aktivitäts-Report</h2>
+            <p style="font-size:13px;color:#777;margin-top:0">Bereich: <strong>{ws_name}</strong> &middot; Zeitraum: <strong>{period_label}</strong> &middot; {len(entries)} Einträge</p>
+            <table style="width:100%;border-collapse:collapse;margin-top:12px">
+                <thead><tr>
+                    <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;font-size:11px;color:#999;text-transform:uppercase">Zeit</th>
+                    <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;font-size:11px;color:#999;text-transform:uppercase">Aktion</th>
+                    <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;font-size:11px;color:#999;text-transform:uppercase">Kontakt</th>
+                    <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;font-size:11px;color:#999;text-transform:uppercase">Wer</th>
+                    <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;font-size:11px;color:#999;text-transform:uppercase">Details</th>
+                </tr></thead>
+                <tbody>{rows}</tbody>
+            </table>
+            <p style="font-size:11px;color:#aaa;margin-top:20px">Automatisch erstellt von velojo.ai</p>
+        </div>"""
+
+        subject = f"velojo.ai Report – {ws_name} – {period_label}"
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": REPORT_FROM_EMAIL,
+                    "to": [recipient],
+                    "subject": subject,
+                    "html": html,
+                }
+            )
+
+        if r.status_code in (200, 201):
+            return {"success": True, "recipient": recipient, "count": len(entries)}
+        else:
+            return JSONResponse({"error": f"Resend-Fehler {r.status_code}: {r.text}"}, status_code=502)
+
+    except Exception as e:
+        print(f"Send report error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 
 # ─────────────────────────────────────────
 # CONTACT FILES (Dateien zu Kontakten)
