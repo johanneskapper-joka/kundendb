@@ -122,6 +122,11 @@
   .contact-status.aktiv { background: #e8f5ee; color: var(--success); }
   .contact-status.interessiert { background: #e8eef8; color: #2d4a7a; }
   .contact-status.inaktiv { background: var(--surface2); color: var(--text-muted); }
+  .contact-rating-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 5px; font-size: 10px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+  .contact-rating-badge.A { background: #e8f5ee; color: var(--success); }
+  .contact-rating-badge.B { background: #fdf3e0; color: #b8860b; }
+  .contact-rating-badge.C { background: #f0efe9; color: var(--text-muted); }
+  .contact-no { font-size: 10px; color: var(--text-muted); font-family: 'Geist', monospace; }
 
   /* Modal */
   .modal-overlay { position: fixed; inset: 0; background: rgba(26,26,26,0.4); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
@@ -256,12 +261,27 @@
       <div class="modal-field"><label>Telefon</label><input type="text" id="editPhone" oninput="scheduleDuplicateCheck()"></div>
     </div>
     <div class="modal-field">
-      <label>Status</label>
-      <select id="editStatus">
-        <option value="interessiert">Interessiert</option>
-        <option value="aktiv">Aktiv</option>
-        <option value="inaktiv">Inaktiv</option>
-      </select>
+      <label>Nummer</label>
+      <input type="text" id="editContactNo" readonly style="background:var(--surface2);color:var(--text-muted);cursor:default">
+    </div>
+    <div class="modal-grid">
+      <div class="modal-field">
+        <label>Status</label>
+        <select id="editStatus">
+          <option value="interessiert">Interessiert</option>
+          <option value="aktiv">Aktiv</option>
+          <option value="inaktiv">Inaktiv</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Klassifizierung</label>
+        <select id="editRating">
+          <option value="">– keine –</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+        </select>
+      </div>
     </div>
     <div class="modal-field"><label>Notizen</label><textarea id="editNotes"></textarea></div>
     <div id="customFieldsContainer"></div>
@@ -619,10 +639,14 @@ function renderContacts(contacts) {
   list.innerHTML = contacts.map(function(c) {
     var name = (c.company_name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     var statusClass = (c.status || '').toLowerCase();
+    var ratingBadge = c.rating ? '<span class="contact-rating-badge ' + c.rating + '">' + c.rating + '</span>' : '';
+    var noLine = c.contact_no ? '<div class="contact-no">Nr. ' + c.contact_no + '</div>' : '';
     return '<div class="contact-card"><div class="contact-top">' +
       '<div class="contact-info" onclick="askAbout(\'' + name + '\')">' +
-      '<div class="contact-company">' + (c.company_name || '-') + '</div>' +
-      '<div class="contact-name">' + (c.contact_name || '') + '</div></div>' +
+      '<div class="contact-company">' + (c.company_name || '-') + ratingBadge + '</div>' +
+      '<div class="contact-name">' + (c.contact_name || '') + '</div>' +
+      noLine +
+      '</div>' +
       '<div class="contact-actions always">' +
       '<button class="contact-action-btn" onclick="openEdit(\'' + c.id + '\')" title="Bearbeiten">&#9998;</button>' +
       '<button class="contact-action-btn delete" onclick="deleteContact(\'' + c.id + '\', \'' + name + '\')" title="In Papierkorb">&#10005;</button>' +
@@ -817,6 +841,8 @@ function openEdit(id) {
   document.getElementById('editEmail').value = c.email || '';
   document.getElementById('editPhone').value = c.phone || '';
   document.getElementById('editStatus').value = c.status || 'interessiert';
+  document.getElementById('editRating').value = c.rating || '';
+  document.getElementById('editContactNo').value = c.contact_no || '–';
   document.getElementById('editNotes').value = c.notes || '';
   hideDupWarning();
   lastDupSignature = (c.company_name||'') + '|' + (c.contact_name||'') + '|' + (c.phone||'') + '|' + (c.email||'');
@@ -836,6 +862,7 @@ function saveContact() {
     email: document.getElementById('editEmail').value,
     phone: document.getElementById('editPhone').value,
     status: document.getElementById('editStatus').value,
+    rating: document.getElementById('editRating').value,
     notes: document.getElementById('editNotes').value,
     custom_fields: collectCustomFields()
   };
@@ -996,7 +1023,7 @@ function deleteFile(fileId) {
 
 function exportCSV() {
   if (!allContacts.length) { alert('Keine Kontakte.'); return; }
-  var baseFields = ['company_name','contact_name','email','phone','language','status','last_contact','notes'];
+  var baseFields = ['contact_no','company_name','contact_name','email','phone','language','status','rating','last_contact','notes'];
   var schema = getWorkspaceSchema();
   var customKeys = schema.map(function(f) { return f.key; });
   var headers = baseFields.concat(schema.map(function(f) { return f.label; }));
