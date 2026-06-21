@@ -159,6 +159,19 @@
   .abc-badge.B { background: #fdf3e0; color: #b8860b; }
   .abc-badge.C { background: var(--surface2); color: var(--text3); }
   .contact-no-cell { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); }
+
+  /* LOGBUCH */
+  .log-filter { display: flex; gap: 4px; }
+  .log-filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text2); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .log-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .log-action { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 12px; font-weight: 500; background: var(--surface2); color: var(--text); }
+  .log-action.create { background: #e8f5ee; color: var(--green); }
+  .log-action.update { background: #e8eef8; color: #2d4a7a; }
+  .log-action.delete { background: #fdf3e0; color: #b8860b; }
+  .log-action.permanent_delete { background: #fde8e8; color: var(--red); }
+  .log-action.restore { background: #e8f5ee; color: var(--green); }
+  .log-time { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; white-space: nowrap; }
+  .log-details { font-size: 12px; color: var(--text2); }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
   .empty-state .big { font-size: 40px; margin-bottom: 12px; }
 
@@ -345,6 +358,7 @@
     <div class="nav-center">
       <button class="nav-btn active" onclick="showTab('contacts', this)">Kontakte</button>
       <button class="nav-btn" onclick="showTab('chat', this)">Chat</button>
+      <button class="nav-btn" onclick="showTab('log', this); loadActivityLog()">Logbuch</button>
       <button class="nav-btn admin-only" onclick="showTab('admin', this)" style="display:none">Admin</button>
     </div>
     <div class="nav-right">
@@ -455,7 +469,63 @@
         </table>
       </div>
     </div>
+
+    <!-- LOGBUCH TAB -->
+    <div id="tab-log" class="tab-panel">
+      <div class="toolbar">
+        <div class="log-filter">
+          <button class="log-filter-btn active" id="logFilterDay" onclick="setLogPeriod('day')">Heute</button>
+          <button class="log-filter-btn" id="logFilterWeek" onclick="setLogPeriod('week')">Diese Woche</button>
+          <button class="log-filter-btn" id="logFilterMonth" onclick="setLogPeriod('month')">Dieser Monat</button>
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn-sm admin-only" id="reportSettingsBtn" onclick="openReportModal()" style="display:none">📧 Report-Einstellungen</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Zeit</th>
+              <th>Aktion</th>
+              <th>Kontakt</th>
+              <th>Wer</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="log-body"></tbody>
+        </table>
+        <div id="log-empty" class="empty-state" style="display:none">
+          <div class="big">📋</div>
+          <div>Keine Aktivitäten in diesem Zeitraum</div>
+        </div>
+      </div>
+    </div>
   </main>
+</div>
+
+<!-- REPORT MODAL -->
+<div class="modal-bg" id="report-modal">
+  <div class="modal">
+    <h2>Report-Einstellungen</h2>
+    <div class="field">
+      <label>Empfänger-Adresse für diesen Bereich</label>
+      <input id="report-email-input" type="email" placeholder="name@firma.de">
+    </div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:8px">An diese Adresse wird der Report gesendet. Pro Bereich (Workspace) getrennt.</p>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+      <button class="btn-sm" onclick="saveReportEmail()">Adresse speichern</button>
+      <span id="report-email-status" style="font-size:12px;color:var(--text2)"></span>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px">
+      <label style="display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;letter-spacing:0.5px;text-transform:uppercase">Report jetzt senden</label>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Sendet die Aktivitäten des aktuell gewählten Zeitraums (<span id="report-period-label">Heute</span>).</p>
+      <button class="btn-primary" style="width:auto;margin-top:0" onclick="sendReport()">📧 Report senden</button>
+      <span id="report-send-status" style="font-size:12px;margin-left:10px"></span>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('report-modal')">Schließen</button>
+    </div>
+  </div>
 </div>
 
 <!-- CONTACT MODAL -->
@@ -576,6 +646,8 @@ let lastDupSignature = "";
 let workspaces = [];
 let editContactId = null;
 let editUserId = null;
+let logPeriod = 'day';
+let logEntries = [];
 let chatHistory = [];
 let mediaRecorder = null;
 let isRecording = false;
@@ -1298,6 +1370,121 @@ async function deleteUser() {
   closeModal('user-modal');
   showToast('Gelöscht', 'success');
   await loadUsers();
+}
+
+// ── LOGBUCH ──
+const LOG_ACTION_LABELS = {
+  create: 'Angelegt', update: 'Geändert', delete: 'In Papierkorb',
+  restore: 'Wiederhergestellt', permanent_delete: 'Endgültig gelöscht',
+  import: 'Importiert', image_upload: 'Bild hochgeladen', image_delete: 'Bild gelöscht',
+  file_upload: 'Datei hochgeladen', file_delete: 'Datei gelöscht'
+};
+
+function setLogPeriod(period) {
+  logPeriod = period;
+  document.getElementById('logFilterDay').classList.toggle('active', period === 'day');
+  document.getElementById('logFilterWeek').classList.toggle('active', period === 'week');
+  document.getElementById('logFilterMonth').classList.toggle('active', period === 'month');
+  const lbl = { day: 'Heute', week: 'Diese Woche', month: 'Dieser Monat' }[period];
+  const pl = document.getElementById('report-period-label');
+  if (pl) pl.textContent = lbl;
+  renderLog();
+}
+
+function periodStart(period) {
+  const now = new Date();
+  if (period === 'day') { const d = new Date(now); d.setHours(0,0,0,0); return d; }
+  if (period === 'week') return new Date(now.getTime() - 7*24*60*60*1000);
+  if (period === 'month') return new Date(now.getTime() - 30*24*60*60*1000);
+  return new Date(now.getTime() - 7*24*60*60*1000);
+}
+
+async function loadActivityLog() {
+  try {
+    let url = `${API}/activity-log`;
+    if (session.workspace_id) url += `?workspace_id=${session.workspace_id}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    logEntries = await r.json();
+    if (!Array.isArray(logEntries)) logEntries = [];
+    renderLog();
+  } catch { logEntries = []; renderLog(); }
+}
+
+function renderLog() {
+  const start = periodStart(logPeriod);
+  const filtered = logEntries.filter(e => {
+    if (!e.created_at) return false;
+    const t = new Date(e.created_at.replace(' ', 'T'));
+    return t >= start;
+  });
+  const tbody = document.getElementById('log-body');
+  tbody.innerHTML = '';
+  document.getElementById('log-empty').style.display = filtered.length ? 'none' : 'block';
+  filtered.forEach(e => {
+    const tr = document.createElement('tr');
+    let when = e.created_at || '';
+    try { when = new Date(e.created_at.replace(' ', 'T')).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch {}
+    const label = LOG_ACTION_LABELS[e.action] || e.action || '';
+    tr.innerHTML = `
+      <td><span class="log-time">${when}</span></td>
+      <td><span class="log-action ${e.action||''}">${label}</span></td>
+      <td>${e.contact_name || '–'}</td>
+      <td>${e.user_name || '–'}</td>
+      <td><span class="log-details">${e.details || ''}</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── REPORT ──
+function openReportModal() {
+  const ws = session.workspace;
+  document.getElementById('report-email-input').value = (ws && ws.report_email) || '';
+  document.getElementById('report-email-status').textContent = '';
+  document.getElementById('report-send-status').textContent = '';
+  const lbl = { day: 'Heute', week: 'Diese Woche', month: 'Dieser Monat' }[logPeriod];
+  document.getElementById('report-period-label').textContent = lbl;
+  document.getElementById('report-modal').classList.add('open');
+}
+
+async function saveReportEmail() {
+  if (!session.workspace_id) { showToast('Kein Workspace gewählt', 'error'); return; }
+  const email = document.getElementById('report-email-input').value.trim();
+  const status = document.getElementById('report-email-status');
+  status.textContent = 'Speichert…';
+  try {
+    const r = await fetch(`${API}/workspaces/${session.workspace_id}/report-email`, {
+      method: 'PUT', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+      body: JSON.stringify({ report_email: email })
+    });
+    if (r.ok) {
+      status.textContent = 'Gespeichert ✓';
+      if (session.workspace) session.workspace.report_email = email || null;
+    } else {
+      const d = await r.json().catch(() => ({}));
+      status.textContent = d.detail || d.error || 'Fehler';
+    }
+  } catch { status.textContent = 'Verbindungsfehler'; }
+}
+
+async function sendReport() {
+  if (!session.workspace_id) { showToast('Kein Workspace gewählt', 'error'); return; }
+  const status = document.getElementById('report-send-status');
+  status.style.color = 'var(--text2)';
+  status.textContent = 'Sendet…';
+  try {
+    const r = await fetch(`${API}/send-report`, {
+      method: 'POST', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+      body: JSON.stringify({ workspace_id: session.workspace_id, period: logPeriod })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.success) {
+      status.style.color = 'var(--green)';
+      status.textContent = `Gesendet an ${d.recipient} (${d.count} Einträge) ✓`;
+    } else {
+      status.style.color = 'var(--red)';
+      status.textContent = d.detail || d.error || 'Fehler beim Senden';
+    }
+  } catch { status.style.color = 'var(--red)'; status.textContent = 'Verbindungsfehler'; }
 }
 
 // ── UI HELPERS ──
