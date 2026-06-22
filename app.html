@@ -172,6 +172,21 @@
   .log-action.restore { background: #e8f5ee; color: var(--green); }
   .log-time { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; white-space: nowrap; }
   .log-details { font-size: 12px; color: var(--text2); }
+
+  /* VORLAGEN */
+  .template-type-badge { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 5px; background: var(--surface2); color: var(--text2); }
+  .template-type-badge.angebot { background: #e8eef8; color: #2d4a7a; }
+  .template-type-badge.bericht { background: #e8f5ee; color: var(--green); }
+  .t-subject-cell { color: var(--text2); font-size: 13px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .t-row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .t-mini-btn { font-size: 12px; padding: 5px 11px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text2); cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .t-mini-btn:hover { color: var(--text); }
+  .t-mini-btn.del:hover { background: #fde8e8; color: var(--red); border-color: transparent; }
+  .placeholder-help { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; }
+  .placeholder-help-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .placeholder-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .placeholder-chip { font-size: 12px; padding: 3px 9px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.12s; }
+  .placeholder-chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
   .empty-state .big { font-size: 40px; margin-bottom: 12px; }
 
@@ -359,6 +374,7 @@
       <button class="nav-btn active" onclick="showTab('contacts', this)">Kontakte</button>
       <button class="nav-btn" onclick="showTab('chat', this)">Chat</button>
       <button class="nav-btn" onclick="showTab('log', this); loadActivityLog()">Logbuch</button>
+      <button class="nav-btn admin-only" onclick="showTab('templates', this); loadTemplates()" style="display:none">Vorlagen</button>
       <button class="nav-btn admin-only" onclick="showTab('admin', this)" style="display:none">Admin</button>
     </div>
     <div class="nav-right">
@@ -500,6 +516,31 @@
         </div>
       </div>
     </div>
+
+    <!-- VORLAGEN TAB -->
+    <div id="tab-templates" class="tab-panel">
+      <div class="toolbar">
+        <div style="flex:1"></div>
+        <button class="btn-sm btn-accent" onclick="openTemplateEditor()">+ Neue Vorlage</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Typ</th>
+              <th>Betreff</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="templates-body"></tbody>
+        </table>
+        <div id="templates-empty" class="empty-state" style="display:none">
+          <div class="big">📄</div>
+          <div>Noch keine Vorlagen – lege oben eine neue an</div>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -524,6 +565,35 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('report-modal')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- VORLAGEN-EDITOR MODAL -->
+<div class="modal-bg" id="template-modal">
+  <div class="modal" style="max-width:640px">
+    <h2 id="template-modal-title">Neue Vorlage</h2>
+    <input type="hidden" id="t-id">
+    <div style="display:flex;gap:12px">
+      <div class="field" style="flex:2"><label>Name</label><input id="t-name" type="text" placeholder="z.B. Angebot Standard"></div>
+      <div class="field" style="flex:1">
+        <label>Typ</label>
+        <select id="t-type">
+          <option value="angebot">Angebot</option>
+          <option value="bericht">Bericht</option>
+          <option value="sonstiges">Sonstiges</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>E-Mail-Betreff</label><input id="t-subject" type="text" onfocus="lastFocusedTemplateField='t-subject'" placeholder="z.B. Ihr Angebot von {{firma}}"></div>
+    <div class="field"><label>Textkörper</label><textarea id="t-body" rows="9" onfocus="lastFocusedTemplateField='t-body'" placeholder="Sehr geehrte/r {{ansprechpartner}}, ..."></textarea></div>
+    <div class="placeholder-help">
+      <div class="placeholder-help-title">Verfügbare Platzhalter <span style="font-weight:400;color:var(--text2)">(zum Einfügen anklicken)</span></div>
+      <div class="placeholder-chips" id="t-placeholder-chips"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('template-modal')">Abbrechen</button>
+      <button class="btn-primary" style="width:auto;margin-top:0" onclick="saveTemplate()">Speichern</button>
     </div>
   </div>
 </div>
@@ -648,6 +718,9 @@ let editContactId = null;
 let editUserId = null;
 let logPeriod = 'day';
 let logEntries = [];
+let allTemplates = [];
+let placeholderCache = null;
+let lastFocusedTemplateField = 't-body';
 let chatHistory = [];
 let mediaRecorder = null;
 let isRecording = false;
@@ -1485,6 +1558,136 @@ async function sendReport() {
       status.textContent = d.detail || d.error || 'Fehler beim Senden';
     }
   } catch { status.style.color = 'var(--red)'; status.textContent = 'Verbindungsfehler'; }
+}
+
+// ── VORLAGEN ──
+async function loadTemplates() {
+  const tbody = document.getElementById('templates-body');
+  tbody.innerHTML = '';
+  try {
+    let url = `${API}/templates`;
+    if (session.workspace_id) url += `?workspace_id=${session.workspace_id}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    allTemplates = await r.json();
+    if (!Array.isArray(allTemplates)) allTemplates = [];
+    renderTemplates();
+  } catch { allTemplates = []; renderTemplates(); }
+}
+
+function renderTemplates() {
+  const tbody = document.getElementById('templates-body');
+  tbody.innerHTML = '';
+  document.getElementById('templates-empty').style.display = allTemplates.length ? 'none' : 'block';
+  allTemplates.forEach(t => {
+    const tr = document.createElement('tr');
+    const typeClass = t.type || 'sonstiges';
+    const typeLabel = { angebot: 'Angebot', bericht: 'Bericht', sonstiges: 'Sonstiges' }[typeClass] || typeClass;
+    tr.innerHTML = `
+      <td><strong>${escapeAttr(t.name||'–')}</strong></td>
+      <td><span class="template-type-badge ${typeClass}">${typeLabel}</span></td>
+      <td class="t-subject-cell">${escapeAttr(t.subject||'')}</td>
+      <td></td>`;
+    const actionTd = tr.lastElementChild;
+    const wrap = document.createElement('div');
+    wrap.className = 't-row-actions';
+    const editBtn = document.createElement('button');
+    editBtn.className = 't-mini-btn';
+    editBtn.textContent = 'Bearbeiten';
+    editBtn.onclick = () => editTemplate(t.id);
+    const delBtn = document.createElement('button');
+    delBtn.className = 't-mini-btn del';
+    delBtn.textContent = 'Löschen';
+    delBtn.onclick = () => deleteTemplate(t.id, t.name);
+    wrap.appendChild(editBtn); wrap.appendChild(delBtn);
+    actionTd.appendChild(wrap);
+    tbody.appendChild(tr);
+  });
+}
+
+function loadPlaceholders(cb) {
+  let url = `${API}/templates/placeholders`;
+  if (session.workspace_id) url += `?workspace_id=${session.workspace_id}`;
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => r.json()).then(data => { placeholderCache = data; if (cb) cb(); })
+    .catch(() => { placeholderCache = { core: [], custom: [] }; if (cb) cb(); });
+}
+
+function renderPlaceholderChips() {
+  const box = document.getElementById('t-placeholder-chips');
+  if (!placeholderCache) { box.innerHTML = ''; return; }
+  const all = (placeholderCache.core || []).concat(placeholderCache.custom || []);
+  box.innerHTML = all.filter(p => p && p.key).map(p =>
+    `<span class="placeholder-chip" title="${escapeAttr(p.label||p.key)}" onclick="insertPlaceholder('${p.key}')">{{${p.key}}}</span>`
+  ).join('');
+}
+
+function insertPlaceholder(key) {
+  const field = document.getElementById(lastFocusedTemplateField) || document.getElementById('t-body');
+  const token2 = '{{' + key + '}}';
+  const start = field.selectionStart != null ? field.selectionStart : field.value.length;
+  const end = field.selectionEnd != null ? field.selectionEnd : field.value.length;
+  field.value = field.value.substring(0, start) + token2 + field.value.substring(end);
+  field.focus();
+  const pos = start + token2.length;
+  field.setSelectionRange(pos, pos);
+}
+
+function openTemplateEditor() {
+  document.getElementById('template-modal-title').textContent = 'Neue Vorlage';
+  document.getElementById('t-id').value = '';
+  document.getElementById('t-name').value = '';
+  document.getElementById('t-type').value = 'angebot';
+  document.getElementById('t-subject').value = '';
+  document.getElementById('t-body').value = '';
+  lastFocusedTemplateField = 't-body';
+  document.getElementById('template-modal').classList.add('open');
+  if (placeholderCache) renderPlaceholderChips(); else loadPlaceholders(renderPlaceholderChips);
+}
+
+function editTemplate(id) {
+  const t = allTemplates.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('template-modal-title').textContent = 'Vorlage bearbeiten';
+  document.getElementById('t-id').value = t.id;
+  document.getElementById('t-name').value = t.name || '';
+  document.getElementById('t-type').value = t.type || 'sonstiges';
+  document.getElementById('t-subject').value = t.subject || '';
+  document.getElementById('t-body').value = t.body || '';
+  lastFocusedTemplateField = 't-body';
+  document.getElementById('template-modal').classList.add('open');
+  if (placeholderCache) renderPlaceholderChips(); else loadPlaceholders(renderPlaceholderChips);
+}
+
+async function saveTemplate() {
+  const id = document.getElementById('t-id').value;
+  const name = document.getElementById('t-name').value.trim();
+  if (!name) { showToast('Bitte einen Namen eingeben', 'error'); return; }
+  const payload = {
+    workspace_id: session.workspace_id || null,
+    name,
+    type: document.getElementById('t-type').value,
+    subject: document.getElementById('t-subject').value,
+    body: document.getElementById('t-body').value
+  };
+  try {
+    const url = `${API}/templates${id ? '/' + id : ''}`;
+    const r = await fetch(url, {
+      method: id ? 'PUT' : 'POST',
+      headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) { closeModal('template-modal'); showToast('Gespeichert ✓'); loadTemplates(); }
+    else { const d = await r.json().catch(()=>({})); showToast(d.detail || d.error || 'Fehler', 'error'); }
+  } catch { showToast('Verbindungsfehler', 'error'); }
+}
+
+async function deleteTemplate(id, name) {
+  if (!confirm(`Vorlage "${name}" wirklich löschen?`)) return;
+  try {
+    const r = await fetch(`${API}/templates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) { showToast('Gelöscht', 'success'); loadTemplates(); }
+    else showToast('Fehler beim Löschen', 'error');
+  } catch { showToast('Verbindungsfehler', 'error'); }
 }
 
 // ── UI HELPERS ──
