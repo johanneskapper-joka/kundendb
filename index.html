@@ -190,6 +190,34 @@
   .log-empty-msg { text-align: center; padding: 30px; color: var(--text-muted); font-size: 13px; }
   .report-box { border-top: 1px solid var(--border); padding-top: 16px; }
 
+  /* VORLAGEN */
+  .templates-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .templates-actions { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .templates-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .template-card { padding: 11px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: border-color 0.15s; }
+  .template-card:hover { border-color: var(--accent); }
+  .template-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .template-card-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .template-type-badge { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 5px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); flex-shrink: 0; }
+  .template-type-badge.angebot { background: #e8eef8; color: #2d4a7a; border-color: transparent; }
+  .template-type-badge.bericht { background: #e8f5ee; color: var(--success); border-color: transparent; }
+  .template-card-subject { font-size: 11px; color: var(--text-muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .template-card-actions { display: flex; gap: 4px; margin-top: 8px; }
+  .template-mini-btn { font-size: 11px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); cursor: pointer; }
+  .template-mini-btn:hover { color: var(--text); }
+  .template-mini-btn.del:hover { background: #fde8e8; color: var(--danger); border-color: transparent; }
+  .placeholder-help { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+  .placeholder-help-title { font-size: 11px; font-weight: 600; margin-bottom: 8px; }
+  .placeholder-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .placeholder-chip { font-size: 11px; padding: 3px 9px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-family: 'Geist', monospace; transition: all 0.12s; }
+  .placeholder-chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* VORLAGE VERWENDEN */
+  .use-tpl-contact { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; padding: 8px 12px; background: var(--surface2); border-radius: 9px; }
+  .use-tpl-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .use-tpl-status { font-size: 12px; color: var(--text-muted); }
+  #polishBtn:disabled { opacity: 0.6; cursor: default; }
+
   /* Chat */
   .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
   .messages { flex: 1; overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; -webkit-overflow-scrolling: touch; }
@@ -360,6 +388,64 @@
   </div>
 </div>
 
+<!-- VORLAGEN-EDITOR MODAL -->
+<div class="modal-overlay" id="templateModal">
+  <div class="modal" style="max-width:680px">
+    <h3 id="templateModalTitle">Neue Vorlage</h3>
+    <input type="hidden" id="templateId">
+    <div class="modal-grid">
+      <div class="modal-field">
+        <label>Name</label>
+        <input type="text" id="templateName" placeholder="z.B. Angebot Standard">
+      </div>
+      <div class="modal-field">
+        <label>Typ</label>
+        <select id="templateType">
+          <option value="angebot">Angebot</option>
+          <option value="bericht">Bericht</option>
+          <option value="sonstiges">Sonstiges</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-field"><label>E-Mail-Betreff</label><input type="text" id="templateSubject" onfocus="lastFocusedTemplateField='templateSubject'" placeholder="z.B. Ihr Angebot von {{firma}}"></div>
+    <div class="modal-field"><label>Textkörper</label><textarea id="templateBody" rows="9" onfocus="lastFocusedTemplateField='templateBody'" placeholder="Sehr geehrte/r {{ansprechpartner}},&#10;&#10;vielen Dank für Ihr Interesse ..."></textarea></div>
+    <div class="placeholder-help">
+      <div class="placeholder-help-title">Verfügbare Platzhalter <span style="font-weight:400;color:var(--text-muted)">(zum Einfügen anklicken)</span></div>
+      <div class="placeholder-chips" id="placeholderChips"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeTemplateModal()">Abbrechen</button>
+      <button class="btn-primary" onclick="saveTemplate()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- VORLAGE VERWENDEN MODAL -->
+<div class="modal-overlay" id="useTemplateModal">
+  <div class="modal" style="max-width:680px">
+    <h3>Vorlage verwenden</h3>
+    <div class="use-tpl-contact" id="useTplContactLabel"></div>
+    <div class="modal-field">
+      <label>Vorlage wählen</label>
+      <select id="useTplSelect" onchange="onUseTemplatePick()">
+        <option value="">– Vorlage auswählen –</option>
+      </select>
+    </div>
+    <div id="useTplPreview" style="display:none">
+      <div class="modal-field"><label>Betreff</label><input type="text" id="useTplSubject"></div>
+      <div class="modal-field"><label>Text</label><textarea id="useTplBody" rows="11"></textarea></div>
+      <div class="use-tpl-actions">
+        <button class="btn-secondary" id="polishBtn" onclick="polishUseTemplate()">✨ Text glätten</button>
+        <button class="btn-secondary" onclick="copyUseTemplate()">📋 Kopieren</button>
+        <span class="use-tpl-status" id="useTplStatus"></span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeUseTemplate()">Schließen</button>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="logo">
     <div class="logo-mark">
@@ -411,6 +497,7 @@
       <div class="sidebar-header-tabs">
         <span class="sidebar-header-tab active" id="tabContactsBtn" onclick="switchSidebarTab('contacts')">Aktiv</span>
         <span class="sidebar-header-tab" id="tabTrashBtn" onclick="switchSidebarTab('trash')">Papierkorb</span>
+        <span class="sidebar-header-tab" id="tabTemplatesBtn" onclick="switchSidebarTab('templates')">Vorlagen</span>
       </div>
     </div>
     <div class="sidebar-actions" id="sidebarActionsRow">
@@ -429,6 +516,14 @@
     </div>
     <div class="contacts-list" id="contactsList">
       <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Wird geladen...</div>
+    </div>
+    <div class="templates-panel" id="templatesPanel" style="display:none">
+      <div class="templates-actions">
+        <button class="btn-primary" style="width:100%;padding:9px" onclick="openTemplateEditor()">+ Neue Vorlage</button>
+      </div>
+      <div class="templates-list" id="templatesList">
+        <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Wird geladen...</div>
+      </div>
     </div>
   </div>
 
@@ -485,6 +580,8 @@ var allWorkspaces = [];
 var currentWorkspace = null;
 var logPeriod = 'day';
 var logEntries = [];
+var allTemplates = [];
+var placeholderCache = null;
 
 var savedWsId = localStorage.getItem('velo_workspace_id');
 audioEl.volume = 0.5;
@@ -574,6 +671,9 @@ function selectWorkspace(ws, closeDropdown) {
     var opt = document.getElementById('wsOpt_' + ws.id);
     if (opt) opt.classList.add('active');
     document.getElementById('sidebarHeader').textContent = ws.name;
+    placeholderCache = null;
+    allTemplates = [];
+    if (sidebarTab === 'templates') loadTemplates();
     clearHistory();
     if (sidebarVisible) refreshSidebar();
   }
@@ -676,9 +776,15 @@ function switchSidebarTab(tab) {
   sidebarTab = tab;
   document.getElementById('tabContactsBtn').classList.toggle('active', tab === 'contacts');
   document.getElementById('tabTrashBtn').classList.toggle('active', tab === 'trash');
+  document.getElementById('tabTemplatesBtn').classList.toggle('active', tab === 'templates');
+  var isTemplates = (tab === 'templates');
   document.getElementById('sidebarActionsRow').style.display = (tab === 'contacts') ? 'flex' : 'none';
+  document.querySelector('.sidebar-search').style.display = isTemplates ? 'none' : 'block';
+  document.getElementById('contactsList').style.display = isTemplates ? 'none' : 'flex';
+  document.getElementById('templatesPanel').style.display = isTemplates ? 'flex' : 'none';
   document.getElementById('searchInput').value = '';
-  refreshSidebar();
+  if (isTemplates) { loadTemplates(); }
+  else { refreshSidebar(); }
 }
 
 function loadContacts() {
@@ -704,8 +810,9 @@ function renderContacts(contacts) {
       noLine +
       '</div>' +
       '<div class="contact-actions always">' +
-      '<button class="contact-action-btn" onclick="openEdit(\'' + c.id + '\')" title="Bearbeiten">&#9998;</button>' +
-      '<button class="contact-action-btn delete" onclick="deleteContact(\'' + c.id + '\', \'' + name + '\')" title="In Papierkorb">&#10005;</button>' +
+      '<button class="contact-action-btn" onclick="event.stopPropagation(); openUseTemplate(\'' + c.id + '\')" title="Vorlage verwenden">&#9993;</button>' +
+      '<button class="contact-action-btn" onclick="event.stopPropagation(); openEdit(\'' + c.id + '\')" title="Bearbeiten">&#9998;</button>' +
+      '<button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContact(\'' + c.id + '\', \'' + name + '\')" title="In Papierkorb">&#10005;</button>' +
       '</div></div>' +
       (c.status ? '<div class="contact-status ' + statusClass + '">' + c.status + '</div>' : '') +
       '</div>';
@@ -929,6 +1036,8 @@ function saveContact() {
 
 document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 document.getElementById('logModal').addEventListener('click', function(e) { if (e.target === this) closeLogModal(); });
+document.getElementById('templateModal').addEventListener('click', function(e) { if (e.target === this) closeTemplateModal(); });
+document.getElementById('useTemplateModal').addEventListener('click', function(e) { if (e.target === this) closeUseTemplate(); });
 
 // ── Bilder zu Kontakten ──────────────────────────────────────────────────────
 
@@ -1184,6 +1293,222 @@ function sendReport() {
       }
     }).catch(function() { status.style.color = 'var(--danger)'; status.textContent = 'Verbindungsfehler'; });
 }
+
+// ── Vorlagen (Templates) ─────────────────────────────────────────────────────────
+
+function loadTemplates() {
+  var url = BACKEND_URL + "/templates";
+  if (currentWorkspace) url += "?workspace_id=" + currentWorkspace.id;
+  document.getElementById('templatesList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Wird geladen...</div>';
+  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    allTemplates = Array.isArray(data) ? data : [];
+    renderTemplates();
+  }).catch(function() { document.getElementById('templatesList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Nicht erreichbar</div>'; });
+}
+
+function renderTemplates() {
+  var list = document.getElementById('templatesList');
+  if (!allTemplates.length) {
+    list.innerHTML = '<div style="padding:24px 16px;text-align:center;color:var(--text-muted);font-size:12px;">Noch keine Vorlagen.<br>Lege oben eine neue an.</div>';
+    return;
+  }
+  list.innerHTML = allTemplates.map(function(t) {
+    var typeClass = (t.type || 'sonstiges');
+    var typeLabel = { angebot: 'Angebot', bericht: 'Bericht', sonstiges: 'Sonstiges' }[typeClass] || typeClass;
+    var subject = t.subject ? escapeHtml(t.subject) : '<span style="opacity:0.6">kein Betreff</span>';
+    return '<div class="template-card">' +
+      '<div class="template-card-top">' +
+      '<div class="template-card-name">' + escapeHtml(t.name || '–') + '</div>' +
+      '<span class="template-type-badge ' + typeClass + '">' + typeLabel + '</span>' +
+      '</div>' +
+      '<div class="template-card-subject">' + subject + '</div>' +
+      '<div class="template-card-actions">' +
+      '<button class="template-mini-btn" onclick="editTemplate(\'' + t.id + '\')">Bearbeiten</button>' +
+      '<button class="template-mini-btn del" onclick="deleteTemplate(\'' + t.id + '\', \'' + (t.name||'').replace(/'/g,"\\'") + '\')">Löschen</button>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function loadPlaceholders(cb) {
+  var url = BACKEND_URL + "/templates/placeholders";
+  if (currentWorkspace) url += "?workspace_id=" + currentWorkspace.id;
+  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    placeholderCache = data;
+    if (cb) cb();
+  }).catch(function() { placeholderCache = { core: [], custom: [] }; if (cb) cb(); });
+}
+
+function renderPlaceholderChips() {
+  var box = document.getElementById('placeholderChips');
+  if (!placeholderCache) { box.innerHTML = ''; return; }
+  var all = (placeholderCache.core || []).concat(placeholderCache.custom || []);
+  box.innerHTML = all.filter(function(p){ return p && p.key; }).map(function(p) {
+    return '<span class="placeholder-chip" title="' + escapeHtml(p.label || p.key) + '" onclick="insertPlaceholder(\'' + p.key + '\')">{{' + p.key + '}}</span>';
+  }).join('');
+}
+
+var lastFocusedTemplateField = 'templateBody';
+function insertPlaceholder(key) {
+  var field = document.getElementById(lastFocusedTemplateField) || document.getElementById('templateBody');
+  var token = '{{' + key + '}}';
+  var start = field.selectionStart != null ? field.selectionStart : field.value.length;
+  var end = field.selectionEnd != null ? field.selectionEnd : field.value.length;
+  field.value = field.value.substring(0, start) + token + field.value.substring(end);
+  field.focus();
+  var pos = start + token.length;
+  field.setSelectionRange(pos, pos);
+}
+
+function openTemplateEditor() {
+  document.getElementById('templateModalTitle').textContent = 'Neue Vorlage';
+  document.getElementById('templateId').value = '';
+  document.getElementById('templateName').value = '';
+  document.getElementById('templateType').value = 'angebot';
+  document.getElementById('templateSubject').value = '';
+  document.getElementById('templateBody').value = '';
+  lastFocusedTemplateField = 'templateBody';
+  document.getElementById('templateModal').classList.add('visible');
+  if (placeholderCache) renderPlaceholderChips();
+  else loadPlaceholders(renderPlaceholderChips);
+}
+
+function editTemplate(id) {
+  var t = allTemplates.find(function(x) { return x.id === id; });
+  if (!t) return;
+  document.getElementById('templateModalTitle').textContent = 'Vorlage bearbeiten';
+  document.getElementById('templateId').value = t.id;
+  document.getElementById('templateName').value = t.name || '';
+  document.getElementById('templateType').value = t.type || 'sonstiges';
+  document.getElementById('templateSubject').value = t.subject || '';
+  document.getElementById('templateBody').value = t.body || '';
+  lastFocusedTemplateField = 'templateBody';
+  document.getElementById('templateModal').classList.add('visible');
+  if (placeholderCache) renderPlaceholderChips();
+  else loadPlaceholders(renderPlaceholderChips);
+}
+
+function closeTemplateModal() { document.getElementById('templateModal').classList.remove('visible'); }
+
+function saveTemplate() {
+  var id = document.getElementById('templateId').value;
+  var name = document.getElementById('templateName').value.trim();
+  if (!name) { alert('Bitte einen Namen eingeben.'); return; }
+  var payload = {
+    workspace_id: currentWorkspace ? currentWorkspace.id : null,
+    name: name,
+    type: document.getElementById('templateType').value,
+    subject: document.getElementById('templateSubject').value,
+    body: document.getElementById('templateBody').value
+  };
+  var url = BACKEND_URL + "/templates" + (id ? "/" + id : "");
+  var method = id ? "PUT" : "POST";
+  fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    .then(function(r) {
+      if (r.ok) { closeTemplateModal(); loadTemplates(); }
+      else r.json().then(function(d) { alert(d.detail || d.error || 'Fehler beim Speichern.'); });
+    }).catch(function() { alert('Verbindungsfehler.'); });
+}
+
+function deleteTemplate(id, name) {
+  if (!confirm('Vorlage "' + name + '" wirklich löschen?')) return;
+  fetch(BACKEND_URL + "/templates/" + id, { method: 'DELETE' })
+    .then(function(r) {
+      if (r.ok) { allTemplates = allTemplates.filter(function(t) { return t.id !== id; }); renderTemplates(); }
+      else alert('Fehler beim Löschen.');
+    }).catch(function() { alert('Verbindungsfehler.'); });
+}
+
+// ── Vorlage verwenden (ausfüllen, glätten, kopieren) ──────────────────────────
+
+var useTplContactId = null;
+
+function openUseTemplate(contactId) {
+  useTplContactId = contactId;
+  var contact = allContacts.find(function(c) { return c.id === contactId; });
+  var label = document.getElementById('useTplContactLabel');
+  label.textContent = contact ? ('Für: ' + (contact.company_name || '') + (contact.contact_name ? ' · ' + contact.contact_name : '')) : '';
+  document.getElementById('useTplPreview').style.display = 'none';
+  document.getElementById('useTplStatus').textContent = '';
+  // Vorlagen-Auswahl füllen (lädt sie, falls noch nicht geladen)
+  var fill = function() {
+    var sel = document.getElementById('useTplSelect');
+    sel.innerHTML = '<option value="">– Vorlage auswählen –</option>' +
+      allTemplates.map(function(t) {
+        var typeLabel = { angebot: 'Angebot', bericht: 'Bericht', sonstiges: 'Sonstiges' }[t.type] || '';
+        return '<option value="' + t.id + '">' + escapeHtml(t.name) + (typeLabel ? ' (' + typeLabel + ')' : '') + '</option>';
+      }).join('');
+  };
+  document.getElementById('useTemplateModal').classList.add('visible');
+  if (allTemplates.length) { fill(); }
+  else {
+    var url = BACKEND_URL + "/templates" + (currentWorkspace ? "?workspace_id=" + currentWorkspace.id : "");
+    fetch(url).then(function(r){ return r.json(); }).then(function(data){
+      allTemplates = Array.isArray(data) ? data : []; fill();
+    }).catch(function(){ fill(); });
+  }
+}
+
+function onUseTemplatePick() {
+  var templateId = document.getElementById('useTplSelect').value;
+  if (!templateId) { document.getElementById('useTplPreview').style.display = 'none'; return; }
+  var status = document.getElementById('useTplStatus');
+  status.style.color = 'var(--text-muted)';
+  status.textContent = 'Wird ausgefüllt…';
+  fetch(BACKEND_URL + "/templates/" + templateId + "/render", {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contact_id: useTplContactId })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.error) { status.style.color = 'var(--danger)'; status.textContent = d.error; return; }
+    document.getElementById('useTplSubject').value = d.subject || '';
+    document.getElementById('useTplBody').value = d.body || '';
+    document.getElementById('useTplPreview').style.display = 'block';
+    status.textContent = '';
+  }).catch(function(){ status.style.color = 'var(--danger)'; status.textContent = 'Verbindungsfehler'; });
+}
+
+function polishUseTemplate() {
+  var body = document.getElementById('useTplBody');
+  var text = body.value.trim();
+  if (!text) return;
+  var btn = document.getElementById('polishBtn');
+  var status = document.getElementById('useTplStatus');
+  btn.disabled = true;
+  status.style.color = 'var(--text-muted)';
+  status.textContent = 'KI verbessert den Text…';
+  fetch(BACKEND_URL + "/ai/polish", {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    btn.disabled = false;
+    if (d.error) { status.style.color = 'var(--danger)'; status.textContent = d.error; return; }
+    body.value = d.text || text;
+    status.style.color = 'var(--success)';
+    status.textContent = 'Geglättet ✓';
+    setTimeout(function(){ status.textContent = ''; }, 2500);
+  }).catch(function(){ btn.disabled = false; status.style.color = 'var(--danger)'; status.textContent = 'Verbindungsfehler'; });
+}
+
+function copyUseTemplate() {
+  var subject = document.getElementById('useTplSubject').value;
+  var body = document.getElementById('useTplBody').value;
+  var combined = (subject ? 'Betreff: ' + subject + '\n\n' : '') + body;
+  var status = document.getElementById('useTplStatus');
+  var done = function() { status.style.color = 'var(--success)'; status.textContent = 'Kopiert ✓'; setTimeout(function(){ status.textContent = ''; }, 2500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(combined).then(done).catch(function(){ fallbackCopy(combined, done); });
+  } else { fallbackCopy(combined, done); }
+}
+
+function fallbackCopy(text, cb) {
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta); if (cb) cb();
+}
+
+function closeUseTemplate() { document.getElementById('useTemplateModal').classList.remove('visible'); }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
 
