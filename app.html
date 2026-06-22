@@ -187,6 +187,15 @@
   .placeholder-chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .placeholder-chip { font-size: 12px; padding: 3px 9px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.12s; }
   .placeholder-chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* VORLAGE VERWENDEN */
+  .row-action-cell { text-align: right; width: 40px; }
+  .row-tpl-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text2); border-radius: 7px; width: 30px; height: 30px; cursor: pointer; font-size: 14px; line-height: 1; transition: all 0.12s; }
+  .row-tpl-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .use-tpl-contact { font-size: 13px; color: var(--text2); margin-bottom: 14px; padding: 8px 12px; background: var(--surface2); border-radius: var(--radius); }
+  .use-tpl-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .use-tpl-status { font-size: 12px; color: var(--text2); }
+  #polish-btn:disabled { opacity: 0.6; cursor: default; }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
   .empty-state .big { font-size: 40px; margin-bottom: 12px; }
 
@@ -413,6 +422,7 @@
               <th>ABC</th>
               <th>Letzter Kontakt</th>
               <th>Telefon</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="contacts-body"></tbody>
@@ -594,6 +604,32 @@
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('template-modal')">Abbrechen</button>
       <button class="btn-primary" style="width:auto;margin-top:0" onclick="saveTemplate()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- VORLAGE VERWENDEN MODAL -->
+<div class="modal-bg" id="use-template-modal">
+  <div class="modal" style="max-width:640px">
+    <h2>Vorlage verwenden</h2>
+    <div class="use-tpl-contact" id="use-tpl-contact"></div>
+    <div class="field">
+      <label>Vorlage wählen</label>
+      <select id="use-tpl-select" onchange="onUseTemplatePick()">
+        <option value="">– Vorlage auswählen –</option>
+      </select>
+    </div>
+    <div id="use-tpl-preview" style="display:none">
+      <div class="field"><label>Betreff</label><input id="use-tpl-subject" type="text"></div>
+      <div class="field"><label>Text</label><textarea id="use-tpl-body" rows="10"></textarea></div>
+      <div class="use-tpl-actions">
+        <button class="btn-sm" id="polish-btn" onclick="polishUseTemplate()">✨ Text glätten</button>
+        <button class="btn-sm" onclick="copyUseTemplate()">📋 Kopieren</button>
+        <span class="use-tpl-status" id="use-tpl-status"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('use-template-modal')">Schließen</button>
     </div>
   </div>
 </div>
@@ -982,7 +1018,18 @@ function renderContacts() {
       <td><span class="status-dot"><span class="dot ${statusDot}"></span>${c.status||'–'}</span></td>
       <td>${abc}</td>
       <td>${c.last_contact ? new Date(c.last_contact).toLocaleDateString('de-DE') : '–'}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:13px">${c.phone||'–'}</td>`;
+      <td style="font-family:'DM Mono',monospace;font-size:13px">${c.phone||'–'}</td>
+      <td class="row-action-cell"></td>`;
+    const canUseTpl = session && (session.role === 'admin' || session.role === 'change');
+    if (canUseTpl) {
+      const actionTd = tr.lastElementChild;
+      const tplBtn = document.createElement('button');
+      tplBtn.className = 'row-tpl-btn';
+      tplBtn.title = 'Vorlage verwenden';
+      tplBtn.innerHTML = '✉';
+      tplBtn.onclick = (e) => { e.stopPropagation(); openUseTemplate(c.id); };
+      actionTd.appendChild(tplBtn);
+    }
     tr.onclick = () => openContactModal(c);
     tbody.appendChild(tr);
   });
@@ -1688,6 +1735,93 @@ async function deleteTemplate(id, name) {
     if (r.ok) { showToast('Gelöscht', 'success'); loadTemplates(); }
     else showToast('Fehler beim Löschen', 'error');
   } catch { showToast('Verbindungsfehler', 'error'); }
+}
+
+// ── VORLAGE VERWENDEN (ausfüllen, glätten, kopieren) ──
+let useTplContactId = null;
+
+async function openUseTemplate(contactId) {
+  useTplContactId = contactId;
+  const contact = contacts.find(c => c.id === contactId);
+  document.getElementById('use-tpl-contact').textContent = contact
+    ? ('Für: ' + (contact.company_name || '') + (contact.contact_name ? ' · ' + contact.contact_name : ''))
+    : '';
+  document.getElementById('use-tpl-preview').style.display = 'none';
+  document.getElementById('use-tpl-status').textContent = '';
+  document.getElementById('use-tpl-select').value = '';
+  document.getElementById('use-template-modal').classList.add('open');
+  // Vorlagen laden, falls noch nicht vorhanden
+  if (!allTemplates.length) { await loadTemplates(); }
+  const sel = document.getElementById('use-tpl-select');
+  sel.innerHTML = '<option value="">– Vorlage auswählen –</option>' +
+    allTemplates.map(t => {
+      const typeLabel = { angebot: 'Angebot', bericht: 'Bericht', sonstiges: 'Sonstiges' }[t.type] || '';
+      return `<option value="${t.id}">${escapeAttr(t.name)}${typeLabel ? ' (' + typeLabel + ')' : ''}</option>`;
+    }).join('');
+}
+
+async function onUseTemplatePick() {
+  const templateId = document.getElementById('use-tpl-select').value;
+  const preview = document.getElementById('use-tpl-preview');
+  const status = document.getElementById('use-tpl-status');
+  if (!templateId) { preview.style.display = 'none'; return; }
+  status.style.color = 'var(--text2)';
+  status.textContent = 'Wird ausgefüllt…';
+  try {
+    const r = await fetch(`${API}/templates/${templateId}/render`, {
+      method: 'POST', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+      body: JSON.stringify({ contact_id: useTplContactId })
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) { status.style.color = 'var(--red)'; status.textContent = d.error || 'Fehler'; return; }
+    document.getElementById('use-tpl-subject').value = d.subject || '';
+    document.getElementById('use-tpl-body').value = d.body || '';
+    preview.style.display = 'block';
+    status.textContent = '';
+  } catch { status.style.color = 'var(--red)'; status.textContent = 'Verbindungsfehler'; }
+}
+
+async function polishUseTemplate() {
+  const body = document.getElementById('use-tpl-body');
+  const text = body.value.trim();
+  if (!text) return;
+  const btn = document.getElementById('polish-btn');
+  const status = document.getElementById('use-tpl-status');
+  btn.disabled = true;
+  status.style.color = 'var(--text2)';
+  status.textContent = 'KI verbessert den Text…';
+  try {
+    const r = await fetch(`${API}/ai/polish`, {
+      method: 'POST', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+      body: JSON.stringify({ text })
+    });
+    const d = await r.json();
+    btn.disabled = false;
+    if (!r.ok || d.error) { status.style.color = 'var(--red)'; status.textContent = d.error || 'Fehler'; return; }
+    body.value = d.text || text;
+    status.style.color = 'var(--green)';
+    status.textContent = 'Geglättet ✓';
+    setTimeout(() => { status.textContent = ''; }, 2500);
+  } catch { btn.disabled = false; status.style.color = 'var(--red)'; status.textContent = 'Verbindungsfehler'; }
+}
+
+function copyUseTemplate() {
+  const subject = document.getElementById('use-tpl-subject').value;
+  const body = document.getElementById('use-tpl-body').value;
+  const combined = (subject ? 'Betreff: ' + subject + '\n\n' : '') + body;
+  const status = document.getElementById('use-tpl-status');
+  const done = () => { status.style.color = 'var(--green)'; status.textContent = 'Kopiert ✓'; setTimeout(() => { status.textContent = ''; }, 2500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(combined).then(done).catch(() => fallbackCopy(combined, done));
+  } else { fallbackCopy(combined, done); }
+}
+
+function fallbackCopy(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta); if (cb) cb();
 }
 
 // ── UI HELPERS ──
