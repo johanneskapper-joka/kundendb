@@ -1355,6 +1355,208 @@ async def delete_contact_file(file_id: str, request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# ─────────────────────────────────────────
+# VORLAGEN (Templates) je Workspace
+# ─────────────────────────────────────────
+# Login-Version: nur Admin darf verwalten. Spielwiese (kein Login): frei.
+
+def _require_template_admin(request: Request):
+    """Wirft 403, wenn eingeloggt und NICHT Admin. Spielwiese (keine Session) ist erlaubt."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if session and session.get("expires") and session["expires"] >= datetime.now():
+        if session.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Nur Admin darf Vorlagen verwalten")
+
+@app.get("/templates")
+async def get_templates(workspace_id: str = None):
+    try:
+        query = supabase.table("templates").select("*").order("name")
+        if workspace_id:
+            query = query.eq("workspace_id", workspace_id)
+        result = query.execute()
+        return result.data
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/templates")
+async def create_template(request: Request):
+    _require_template_admin(request)
+    try:
+        body = await request.json()
+        name = (body.get("name") or "").strip()
+        if not name:
+            return JSONResponse({"error": "Name erforderlich"}, status_code=400)
+        payload = {
+            "workspace_id": body.get("workspace_id"),
+            "name": name,
+            "type": (body.get("type") or "sonstiges").strip(),
+            "subject": body.get("subject") or "",
+            "body": body.get("body") or "",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        result = supabase.table("templates").insert(payload).execute()
+        return {"success": True, "template": result.data[0] if result.data else None}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.put("/templates/{template_id}")
+async def update_template(template_id: str, request: Request):
+    _require_template_admin(request)
+    try:
+        body = await request.json()
+        payload = {"updated_at": datetime.utcnow().isoformat()}
+        if "name" in body: payload["name"] = (body.get("name") or "").strip()
+        if "type" in body: payload["type"] = (body.get("type") or "sonstiges").strip()
+        if "subject" in body: payload["subject"] = body.get("subject") or ""
+        if "body" in body: payload["body"] = body.get("body") or ""
+        supabase.table("templates").update(payload).eq("id", template_id).execute()
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.delete("/templates/{template_id}")
+async def delete_template(template_id: str, request: Request):
+    _require_template_admin(request)
+    try:
+        supabase.table("templates").delete().eq("id", template_id).execute()
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/templates/placeholders")
+async def get_placeholders(workspace_id: str = None):
+    """Liefert die verfügbaren Platzhalter für einen Workspace:
+    Kernfelder + die Custom-Felder des Workspace. Fürs Frontend zum Anzeigen."""
+    core = [
+        {"key": "firma", "label": "Firma / Name"},
+        {"key": "ansprechpartner", "label": "Ansprechpartner"},
+        {"key": "email", "label": "E-Mail"},
+        {"key": "telefon", "label": "Telefon"},
+        {"key": "status", "label": "Status"},
+        {"key": "nummer", "label": "Kontaktnummer"},
+        {"key": "klassifizierung", "label": "Klassifizierung (ABC)"},
+        {"key": "notizen", "label": "Notizen"},
+        {"key": "datum", "label": "Heutiges Datum"},
+    ]
+    custom = []
+    if workspace_id:
+        try:
+            ws = supabase.table("workspaces").select("field_schema").eq("id", workspace_id).execute()
+            if ws.data:
+                schema = ws.data[0].get("field_schema") or []
+                for f in schema:
+                    custom.append({"key": f.get("key"), "label": f.get("label")})
+        except Exception as e:
+            print(f"Placeholder schema error: {e}")
+    return {"core": core, "custom": custom}
+
+def _build_placeholder_values(contact: dict) -> dict:
+    """Ordnet Platzhalter-Schlüssel den echten Werten eines Kontakts zu.
+    Kernfelder + Custom-Felder. Fehlende Werte werden zu leerem String."""
+    from datetime import date
+    cf = contact.get("custom_fields") or {}
+    values = {
+        "firma": contact.get("company_name") or "",
+        "ansprechpartner": contact.get("contact_name") or "",
+        "email": contact.get("email") or "",
+        "telefon": contact.get("phone") or "",
+        "status": contact.get("status") or "",
+        "nummer": str(contact.get("contact_no") or ""),
+        "klassifizierung": contact.get("rating") or "",
+        "notizen": contact.get("notes") or "",
+        "datum": date.today().strftime("%d.%m.%Y"),
+    }
+    # Custom-Felder ergänzen (Schlüssel wie im field_schema)
+    for k, v in cf.items():
+        values[k] = "" if v is None else str(v)
+    return values
+
+def _fill_placeholders(text: str, values: dict) -> str:
+    """Ersetzt {{schluessel}} durch den Wert. Unbekannte Platzhalter werden leer."""
+    if not text:
+        return ""
+    def repl(m):
+        key = m.group(1).strip()
+        return values.get(key, "")
+    return re.sub(r"\{\{\s*([\w]+)\s*\}\}", repl, text)
+
+@app.post("/templates/{template_id}/render")
+async def render_template(template_id: str, request: Request):
+    """Füllt eine Vorlage mit den Daten eines Kontakts. Gibt Betreff + Text gefüllt zurück."""
+    try:
+        body = await request.json()
+        contact_id = body.get("contact_id")
+        if not contact_id:
+            return JSONResponse({"error": "contact_id erforderlich"}, status_code=400)
+
+        tpl_res = supabase.table("templates").select("*").eq("id", template_id).execute()
+        if not tpl_res.data:
+            return JSONResponse({"error": "Vorlage nicht gefunden"}, status_code=404)
+        template = tpl_res.data[0]
+
+        c_res = supabase.table("contacts").select("*").eq("id", contact_id).execute()
+        if not c_res.data:
+            return JSONResponse({"error": "Kontakt nicht gefunden"}, status_code=404)
+        contact = c_res.data[0]
+
+        values = _build_placeholder_values(contact)
+        subject = _fill_placeholders(template.get("subject") or "", values)
+        filled_body = _fill_placeholders(template.get("body") or "", values)
+
+        return {
+            "subject": subject,
+            "body": filled_body,
+            "template_name": template.get("name") or "",
+            "contact_email": contact.get("email") or "",
+        }
+    except Exception as e:
+        print(f"Render template error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/ai/polish")
+async def ai_polish(request: Request):
+    """Glättet einen Text sprachlich: Formulierung, Rechtschreibung, Grammatik.
+    Bedeutung, Sprache und Platzhalter ({{...}}) bleiben unverändert.
+    Gibt NUR den verbesserten Text zurück."""
+    try:
+        body = await request.json()
+        text = (body.get("text") or "").strip()
+        if not text:
+            return JSONResponse({"error": "Kein Text übergeben"}, status_code=400)
+
+        system_prompt = (
+            "Du bist ein professioneller Lektor. Verbessere den folgenden Text: "
+            "Formulierung, Rechtschreibung, Grammatik und Lesbarkeit. "
+            "WICHTIGE REGELN: "
+            "1) Behalte die Sprache des Originals exakt bei (Deutsch bleibt Deutsch usw.). "
+            "2) Ändere die Bedeutung und den Inhalt NICHT. "
+            "3) Lasse alle Platzhalter der Form {{...}} unverändert und an sinnvoller Stelle stehen. "
+            "4) Behalte den Charakter eines geschäftlichen Schreibens (Anrede, Grußformel) bei. "
+            "5) Gib AUSSCHLIESSLICH den verbesserten Text zurück – ohne Einleitung, ohne Kommentar, ohne Anführungszeichen."
+        )
+
+        response = claude.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1500,
+            system=system_prompt,
+            messages=[{"role": "user", "content": text}],
+        )
+
+        improved = ""
+        for block in response.content:
+            if getattr(block, "type", None) == "text":
+                improved += block.text
+        improved = improved.strip()
+        if not improved:
+            improved = text  # Fallback: Original zurückgeben
+
+        return {"text": improved}
+    except Exception as e:
+        print(f"AI polish error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "elevenlabs": bool(ELEVENLABS_API_KEY), "storage": bool(SUPABASE_SERVICE_KEY)}
