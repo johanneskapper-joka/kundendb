@@ -373,6 +373,7 @@ REGEL 4 – Antworten:
 def build_system_prompt(workspace: dict = None) -> str:
     custom_fields_info = ""
     extra_prompt = ""
+    templates_info = ""
     if workspace:
         schema = workspace.get("field_schema") or []
         if schema:
@@ -381,10 +382,27 @@ def build_system_prompt(workspace: dict = None) -> str:
         extra = workspace.get("system_prompt_extra", "")
         if extra:
             extra_prompt = f"\n\nWorkspace-Kontext: {extra}"
+        # Verfügbare Vorlagen dieses Workspace laden (für den Vorlagen-per-Chat-Weg)
+        try:
+            tpl_res = supabase.table("templates").select("name, type").eq("workspace_id", workspace.get("id")).execute()
+            tpls = tpl_res.data or []
+            if tpls:
+                tpl_list = ", ".join([f"\"{t.get('name')}\"" for t in tpls])
+                templates_info = (
+                    f"\n\nVERFÜGBARE VORLAGEN: {tpl_list}\n"
+                    "Wenn der Nutzer aus einer Vorlage ein Schreiben/Angebot/einen Bericht für einen Kontakt erstellen möchte "
+                    "(z.B. \"Schreib ein Angebot für Müller GmbH\"), antworte NUR mit folgendem Block (kein weiterer Text):\n"
+                    "<template_action>\n"
+                    "{{\"template\": \"exakter Vorlagenname\", \"company_name\": \"Firmenname des Kontakts\"}}\n"
+                    "</template_action>\n"
+                    "Wähle den Vorlagennamen, der am besten passt. Den Firmennamen nimm aus der Kundendatenbank."
+                )
+        except Exception as e:
+            print(f"Template prompt error: {e}")
     return BASE_SYSTEM_PROMPT.format(
         custom_fields_info=custom_fields_info,
         extra_prompt=extra_prompt
-    )
+    ) + templates_info
 
 class Message(BaseModel):
     role: str
@@ -497,6 +515,60 @@ async def chat(req: ChatRequest, request: Request):
                                      user_id=_a_uid, user_name=_a_uname)
             except Exception as e:
                 print(f"DB error: {e}")
+
+    # Vorlage per Chat: <template_action> erkennen, ausfüllen und Ergebnis zurückgeben
+    if "<template_action>" in response_text:
+        tmatch = re.search(r'<template_action>(.*?)</template_action>', response_text, re.DOTALL)
+        if tmatch:
+            try:
+                tdata = json.loads(tmatch.group(1).strip())
+                tpl_name = (tdata.get("template") or "").strip()
+                comp_name = (tdata.get("company_name") or "").strip()
+
+                # Vorlage im Workspace finden (exakt, sonst unscharf per Kleinschreibung)
+                tq = supabase.table("templates").select("*")
+                if req.workspace_id:
+                    tq = tq.eq("workspace_id", req.workspace_id)
+                all_tpls = tq.execute().data or []
+                template = None
+                for t in all_tpls:
+                    if (t.get("name") or "").strip().lower() == tpl_name.lower():
+                        template = t; break
+                if not template:
+                    for t in all_tpls:
+                        if tpl_name.lower() in (t.get("name") or "").strip().lower():
+                            template = t; break
+
+                # Kontakt per Firmenname finden
+                cq = supabase.table("contacts").select("*").is_("deleted_at", "null")
+                if req.workspace_id:
+                    cq = cq.eq("workspace_id", req.workspace_id)
+                all_cs = cq.execute().data or []
+                contact = None
+                for c in all_cs:
+                    if (c.get("company_name") or "").strip().lower() == comp_name.lower():
+                        contact = c; break
+                if not contact:
+                    for c in all_cs:
+                        if comp_name.lower() in (c.get("company_name") or "").strip().lower():
+                            contact = c; break
+
+                if not template:
+                    response_text = f"Ich konnte keine passende Vorlage zu \"{tpl_name}\" finden."
+                elif not contact:
+                    response_text = f"Ich konnte keinen Kontakt zu \"{comp_name}\" finden."
+                else:
+                    values = _build_placeholder_values(contact)
+                    subject = _fill_placeholders(template.get("subject") or "", values)
+                    filled = _fill_placeholders(template.get("body") or "", values)
+                    parts = []
+                    if subject:
+                        parts.append(f"Betreff: {subject}")
+                    parts.append(filled)
+                    response_text = "\n\n".join(parts)
+            except Exception as e:
+                print(f"Template action error: {e}")
+                response_text = "Beim Erstellen aus der Vorlage ist ein Fehler aufgetreten."
 
     clean_response = re.sub(r'<db_action>.*?</db_action>', '', response_text, flags=re.DOTALL).strip()
     return {"reply": clean_response}
