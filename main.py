@@ -12,6 +12,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional
 import openai
+from fpdf import FPDF
 
 app = FastAPI()
 
@@ -1628,6 +1629,103 @@ async def ai_polish(request: Request):
     except Exception as e:
         print(f"AI polish error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# ─────────────────────────────────────────
+# PDF-ERZEUGUNG (schlichtes, sauberes Layout)
+# ─────────────────────────────────────────
+
+def _pdf_sanitize(text):
+    """Wandelt typografische Sonderzeichen in PDF-sichere um und entfernt
+    alles, was die Standard-Schrift (latin-1) nicht darstellen kann."""
+    if not text:
+        return ""
+    repl = {
+        "\u2018": "'", "\u2019": "'", "\u201a": "'",
+        "\u201c": '"', "\u201d": '"', "\u201e": '"',
+        "\u2013": "-", "\u2014": "-", "\u2026": "...",
+        "\u00a0": " ", "\u2022": "-", "\u20ac": "EUR",
+    }
+    for k, v in repl.items():
+        text = text.replace(k, v)
+    return text.encode("latin-1", "ignore").decode("latin-1")
+
+def build_pdf_bytes(subject, body, sender_name="velojo", recipient_name=""):
+    """Erzeugt ein A4-PDF mit Absender, Datum, Empfänger, Betreff und Text.
+    Gibt die PDF-Daten als Bytes zurück."""
+    pdf = FPDF(format="A4")
+    LEFT, RIGHT, TOP = 25, 25, 22
+    pdf.set_margins(LEFT, TOP, RIGHT)
+    pdf.set_auto_page_break(auto=True, margin=22)
+    pdf.add_page()
+    W = pdf.w - LEFT - RIGHT
+
+    # Absender
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_x(LEFT)
+    pdf.multi_cell(W, 9, _pdf_sanitize(sender_name or "velojo"))
+    y = pdf.get_y() + 1
+    pdf.set_draw_color(200, 200, 200)
+    pdf.line(LEFT, y, pdf.w - RIGHT, y)
+    pdf.ln(8)
+
+    # Datum (rechts)
+    pdf.set_font("Helvetica", size=10)
+    pdf.set_text_color(110, 110, 110)
+    pdf.set_x(LEFT)
+    pdf.cell(W, 5, _pdf_sanitize(datetime.today().strftime("%d.%m.%Y")), align="R",
+             new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(4)
+
+    # Empfänger
+    if recipient_name:
+        pdf.set_font("Helvetica", size=11)
+        pdf.set_x(LEFT)
+        pdf.multi_cell(W, 6, _pdf_sanitize(recipient_name))
+        pdf.ln(4)
+
+    # Betreff (fett)
+    if subject:
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_x(LEFT)
+        pdf.multi_cell(W, 6, _pdf_sanitize(subject))
+        pdf.ln(3)
+
+    # Textkörper
+    pdf.set_font("Helvetica", size=11)
+    for line in _pdf_sanitize(body).split("\n"):
+        pdf.set_x(LEFT)
+        if line.strip() == "":
+            pdf.ln(4)
+        else:
+            pdf.multi_cell(W, 6, line)
+
+    return bytes(pdf.output())
+
+@app.get("/pdf-test")
+async def pdf_test():
+    """Test-Adresse: erzeugt ein Beispiel-PDF, um zu prüfen, ob die PDF-Erzeugung
+    auf dem Server funktioniert. Kann später entfernt werden."""
+    body = (
+        "Sehr geehrte Frau Muster,\n\n"
+        "vielen Dank fur Ihr Interesse an unseren Leistungen. "
+        "Anbei erhalten Sie wie besprochen unser Angebot.\n\n"
+        "Dies ist ein Beispiel-PDF von velojo, um die PDF-Erzeugung zu testen. "
+        "Umlaute: Anderung, Uberprufung, Grosse, schon.\n\n"
+        "Mit freundlichen Grussen\n"
+        "Ihr velojo-Team"
+    )
+    pdf_bytes = build_pdf_bytes(
+        subject="Beispiel-Angebot (Test)",
+        body=body,
+        sender_name="velojo",
+        recipient_name="Muster GmbH\nFrau Muster"
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "inline; filename=velojo-test.pdf"}
+    )
 
 @app.get("/health")
 async def health():
