@@ -1183,6 +1183,7 @@ ACTION_LABELS = {
     "image_delete": "Bild gelöscht",
     "file_upload": "Datei hochgeladen",
     "file_delete": "Datei gelöscht",
+    "template_send": "Vorlage gesendet",
 }
 
 def _period_start(period: str):
@@ -1701,6 +1702,114 @@ def build_pdf_bytes(subject, body, sender_name="velojo", recipient_name=""):
             pdf.multi_cell(W, 6, line)
 
     return bytes(pdf.output())
+
+@app.post("/templates/send-pdf")
+async def send_template_pdf(request: Request):
+    """Erzeugt aus Betreff+Text ein PDF und verschickt es als E-Mail-Anhang über Resend.
+    Kurzer Begleittext in der Mail, Inhalt im PDF. BCC an die Workspace-Report-Adresse.
+    Empfänger: recipient_email, sonst die E-Mail des Kontakts."""
+    import base64
+
+    # Rollenprüfung: Login-Version nur Change/Admin; Spielwiese (kein Login) frei
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if session and session.get("expires") and session["expires"] >= datetime.now():
+        if session.get("role") == "read":
+            raise HTTPException(status_code=403, detail="Keine Berechtigung zum Senden")
+
+    try:
+        body = await request.json()
+        subject = (body.get("subject") or "").strip()
+        text_body = body.get("body") or ""
+        contact_id = body.get("contact_id")
+        recipient_override = (body.get("recipient_email") or "").strip()
+        workspace_id = body.get("workspace_id")
+
+        if not subject and not text_body:
+            return JSONResponse({"error": "Betreff und Text sind leer"}, status_code=400)
+
+        # Resend konfiguriert?
+        if not RESEND_API_KEY or not REPORT_FROM_EMAIL:
+            return JSONResponse({"error": "E-Mail-Versand ist serverseitig noch nicht konfiguriert (RESEND_API_KEY / REPORT_FROM_EMAIL fehlen)."}, status_code=400)
+
+        # Kontakt holen (für Empfänger-Adresse + Name)
+        contact = None
+        if contact_id:
+            c_res = supabase.table("contacts").select("*").eq("id", contact_id).execute()
+            if c_res.data:
+                contact = c_res.data[0]
+
+        # Empfänger bestimmen
+        recipient = recipient_override or (contact.get("email") if contact else "")
+        recipient = (recipient or "").strip()
+        if not recipient:
+            return JSONResponse({"error": "Keine Empfänger-Adresse vorhanden (Kontakt hat keine E-Mail und es wurde keine eingegeben)."}, status_code=400)
+
+        # Absender-Name (Bereichsname) + BCC holen
+        sender_name = "velojo"
+        bcc = None
+        if workspace_id:
+            ws_res = supabase.table("workspaces").select("name, report_email").eq("id", workspace_id).execute()
+            if ws_res.data:
+                sender_name = ws_res.data[0].get("name") or "velojo"
+                bcc = (ws_res.data[0].get("report_email") or "").strip() or None
+
+        # Empfänger-Name fürs PDF
+        recipient_name = ""
+        if contact:
+            parts = []
+            if contact.get("company_name"): parts.append(contact["company_name"])
+            if contact.get("contact_name"): parts.append(contact["contact_name"])
+            recipient_name = "\n".join(parts)
+
+        # PDF bauen
+        pdf_bytes = build_pdf_bytes(subject=subject, body=text_body,
+                                    sender_name=sender_name, recipient_name=recipient_name)
+        pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+
+        # Dateiname
+        safe = re.sub(r"[^\w\-]+", "_", (subject or "Dokument")).strip("_")[:50] or "Dokument"
+        filename = f"{safe}.pdf"
+
+        # Kurzer Begleittext in der Mail
+        mail_html = (
+            f"<div style=\"font-family:Arial,sans-serif;font-size:14px;color:#222\">"
+            f"<p>Guten Tag,</p>"
+            f"<p>anbei erhalten Sie das Dokument <strong>{subject or 'im Anhang'}</strong> als PDF.</p>"
+            f"<p>Mit freundlichen Grüßen<br>{sender_name}</p>"
+            f"</div>"
+        )
+
+        payload = {
+            "from": f"{sender_name} <{REPORT_FROM_EMAIL}>",
+            "to": [recipient],
+            "subject": subject or "Ihr Dokument",
+            "html": mail_html,
+            "attachments": [{"filename": filename, "content": pdf_b64}],
+        }
+        if bcc:
+            payload["bcc"] = [bcc]
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                json=payload,
+            )
+
+        if r.status_code in (200, 201):
+            # Aktivität protokollieren
+            uid, uname = get_actor(request)
+            cname = contact.get("company_name") if contact else None
+            log_activity("template_send", contact_name=cname, workspace_id=workspace_id,
+                         contact_id=contact_id, details=f"PDF an {recipient}", user_id=uid, user_name=uname)
+            return {"success": True, "recipient": recipient, "bcc": bool(bcc)}
+        else:
+            return JSONResponse({"error": f"Resend-Fehler {r.status_code}: {r.text}"}, status_code=502)
+
+    except Exception as e:
+        print(f"Send template PDF error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/pdf-test")
 async def pdf_test():
