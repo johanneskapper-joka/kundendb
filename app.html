@@ -194,6 +194,7 @@
   .row-tpl-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   .use-tpl-contact { font-size: 13px; color: var(--text2); margin-bottom: 14px; padding: 8px 12px; background: var(--surface2); border-radius: var(--radius); }
   .use-tpl-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .use-tpl-send { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
   .use-tpl-status { font-size: 12px; color: var(--text2); }
   #polish-btn:disabled { opacity: 0.6; cursor: default; }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
@@ -626,6 +627,14 @@
         <button class="btn-sm" id="polish-btn" onclick="polishUseTemplate()">✨ Text glätten</button>
         <button class="btn-sm" onclick="copyUseTemplate()">📋 Kopieren</button>
         <span class="use-tpl-status" id="use-tpl-status"></span>
+      </div>
+      <div class="use-tpl-send">
+        <div class="field"><label>Empfänger-E-Mail</label><input id="use-tpl-recipient" type="email" placeholder="name@firma.de"></div>
+        <div class="use-tpl-actions">
+          <button class="btn-primary" id="send-pdf-btn" style="width:auto;margin-top:0" onclick="sendTemplatePdf()">📧 Als PDF per E-Mail senden</button>
+          <span class="use-tpl-status" id="use-tpl-send-status"></span>
+        </div>
+        <p style="font-size:11px;color:var(--text2);margin-top:4px">Der Text wird als PDF angehängt. Eine Kopie geht an die Report-Adresse des Bereichs.</p>
       </div>
     </div>
     <div class="modal-footer">
@@ -1776,6 +1785,8 @@ async function onUseTemplatePick() {
     if (!r.ok || d.error) { status.style.color = 'var(--red)'; status.textContent = d.error || 'Fehler'; return; }
     document.getElementById('use-tpl-subject').value = d.subject || '';
     document.getElementById('use-tpl-body').value = d.body || '';
+    document.getElementById('use-tpl-recipient').value = d.contact_email || '';
+    document.getElementById('use-tpl-send-status').textContent = '';
     preview.style.display = 'block';
     status.textContent = '';
   } catch { status.style.color = 'var(--red)'; status.textContent = 'Verbindungsfehler'; }
@@ -1814,6 +1825,38 @@ function copyUseTemplate() {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(combined).then(done).catch(() => fallbackCopy(combined, done));
   } else { fallbackCopy(combined, done); }
+}
+
+async function sendTemplatePdf() {
+  const recipient = document.getElementById('use-tpl-recipient').value.trim();
+  const subject = document.getElementById('use-tpl-subject').value;
+  const bodyText = document.getElementById('use-tpl-body').value;
+  const status = document.getElementById('use-tpl-send-status');
+  if (!recipient) { status.style.color = 'var(--red)'; status.textContent = 'Bitte Empfänger-Adresse eingeben.'; return; }
+  if (!bodyText.trim() && !subject.trim()) { status.style.color = 'var(--red)'; status.textContent = 'Kein Inhalt zum Senden.'; return; }
+  const btn = document.getElementById('send-pdf-btn');
+  btn.disabled = true;
+  status.style.color = 'var(--text2)';
+  status.textContent = 'PDF wird erstellt und gesendet…';
+  try {
+    const r = await fetch(`${API}/templates/send-pdf`, {
+      method: 'POST', headers: {'Content-Type':'application/json', Authorization: `Bearer ${token}`},
+      body: JSON.stringify({
+        subject, body: bodyText,
+        contact_id: useTplContactId, recipient_email: recipient,
+        workspace_id: session.workspace_id || null
+      })
+    });
+    const d = await r.json();
+    btn.disabled = false;
+    if (r.ok && d.success) {
+      status.style.color = 'var(--green)';
+      status.textContent = 'Gesendet an ' + d.recipient + (d.bcc ? ' (Kopie an Report-Adresse)' : '') + ' ✓';
+    } else {
+      status.style.color = 'var(--red)';
+      status.textContent = d.detail || d.error || 'Fehler beim Senden';
+    }
+  } catch { btn.disabled = false; status.style.color = 'var(--red)'; status.textContent = 'Verbindungsfehler'; }
 }
 
 function fallbackCopy(text, cb) {
