@@ -216,6 +216,7 @@
   .use-tpl-contact { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; padding: 8px 12px; background: var(--surface2); border-radius: 9px; }
   .use-tpl-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
   .use-tpl-status { font-size: 12px; color: var(--text-muted); }
+  .use-tpl-send { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
   #polishBtn:disabled { opacity: 0.6; cursor: default; }
 
   /* Chat */
@@ -438,6 +439,14 @@
         <button class="btn-secondary" id="polishBtn" onclick="polishUseTemplate()">✨ Text glätten</button>
         <button class="btn-secondary" onclick="copyUseTemplate()">📋 Kopieren</button>
         <span class="use-tpl-status" id="useTplStatus"></span>
+      </div>
+      <div class="use-tpl-send">
+        <div class="modal-field"><label>Empfänger-E-Mail</label><input type="email" id="useTplRecipient" placeholder="name@firma.de"></div>
+        <div class="use-tpl-actions">
+          <button class="btn-primary" id="sendPdfBtn" onclick="sendTemplatePdf()">📧 Als PDF per E-Mail senden</button>
+          <span class="use-tpl-status" id="useTplSendStatus"></span>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:4px">Der Text wird als PDF angehängt. Eine Kopie geht an die Report-Adresse des Bereichs.</p>
       </div>
     </div>
     <div class="modal-actions">
@@ -1462,6 +1471,8 @@ function onUseTemplatePick() {
     if (d.error) { status.style.color = 'var(--danger)'; status.textContent = d.error; return; }
     document.getElementById('useTplSubject').value = d.subject || '';
     document.getElementById('useTplBody').value = d.body || '';
+    document.getElementById('useTplRecipient').value = d.contact_email || '';
+    document.getElementById('useTplSendStatus').textContent = '';
     document.getElementById('useTplPreview').style.display = 'block';
     status.textContent = '';
   }).catch(function(){ status.style.color = 'var(--danger)'; status.textContent = 'Verbindungsfehler'; });
@@ -1506,6 +1517,37 @@ function fallbackCopy(text, cb) {
   document.body.appendChild(ta); ta.focus(); ta.select();
   try { document.execCommand('copy'); } catch (e) {}
   document.body.removeChild(ta); if (cb) cb();
+}
+
+function sendTemplatePdf() {
+  var recipient = document.getElementById('useTplRecipient').value.trim();
+  var subject = document.getElementById('useTplSubject').value;
+  var bodyText = document.getElementById('useTplBody').value;
+  var status = document.getElementById('useTplSendStatus');
+  if (!recipient) { status.style.color = 'var(--danger)'; status.textContent = 'Bitte Empfänger-Adresse eingeben.'; return; }
+  if (!bodyText.trim() && !subject.trim()) { status.style.color = 'var(--danger)'; status.textContent = 'Kein Inhalt zum Senden.'; return; }
+  var btn = document.getElementById('sendPdfBtn');
+  btn.disabled = true;
+  status.style.color = 'var(--text-muted)';
+  status.textContent = 'PDF wird erstellt und gesendet…';
+  fetch(BACKEND_URL + "/templates/send-pdf", {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      subject: subject, body: bodyText,
+      contact_id: useTplContactId, recipient_email: recipient,
+      workspace_id: currentWorkspace ? currentWorkspace.id : null
+    })
+  }).then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(res){
+      btn.disabled = false;
+      if (res.ok && res.d.success) {
+        status.style.color = 'var(--success)';
+        status.textContent = 'Gesendet an ' + res.d.recipient + (res.d.bcc ? ' (Kopie an Report-Adresse)' : '') + ' ✓';
+      } else {
+        status.style.color = 'var(--danger)';
+        status.textContent = res.d.detail || res.d.error || 'Fehler beim Senden';
+      }
+    }).catch(function(){ btn.disabled = false; status.style.color = 'var(--danger)'; status.textContent = 'Verbindungsfehler'; });
 }
 
 function closeUseTemplate() { document.getElementById('useTemplateModal').classList.remove('visible'); }
