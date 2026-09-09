@@ -394,9 +394,13 @@ def build_system_prompt(workspace: dict = None) -> str:
                     "Wenn der Nutzer aus einer Vorlage ein Schreiben/Angebot/einen Bericht für einen Kontakt erstellen möchte "
                     "(z.B. \"Schreib ein Angebot für Müller GmbH\"), antworte NUR mit folgendem Block (kein weiterer Text):\n"
                     "<template_action>\n"
-                    "{{\"template\": \"exakter Vorlagenname\", \"company_name\": \"Firmenname des Kontakts\"}}\n"
+                    '{"template": "exakter Vorlagenname", "company_name": "Firmenname des Kontakts", "send": false, "recipient": ""}\n'
                     "</template_action>\n"
-                    "Wähle den Vorlagennamen, der am besten passt. Den Firmennamen nimm aus der Kundendatenbank."
+                    "Wähle den Vorlagennamen, der am besten passt. Den Firmennamen nimm aus der Kundendatenbank.\n"
+                    "Setze \"send\" auf true, WENN der Nutzer das Dokument auch verschicken möchte "
+                    "(z.B. \"... und schick es per Mail\", \"... an die Kontaktadresse senden\"). Sonst false.\n"
+                    "Bei \"recipient\": Wenn der Nutzer eine konkrete E-Mail-Adresse nennt, trage sie dort ein. "
+                    "Bei \"an die Kontaktadresse\" oder ohne Angabe lass \"recipient\" leer (dann wird die E-Mail des Kontakts genutzt)."
                 )
         except Exception as e:
             print(f"Template prompt error: {e}")
@@ -562,11 +566,57 @@ async def chat(req: ChatRequest, request: Request):
                     values = _build_placeholder_values(contact)
                     subject = _fill_placeholders(template.get("subject") or "", values)
                     filled = _fill_placeholders(template.get("body") or "", values)
-                    parts = []
-                    if subject:
-                        parts.append(f"Betreff: {subject}")
-                    parts.append(filled)
-                    response_text = "\n\n".join(parts)
+
+                    want_send = bool(tdata.get("send"))
+                    if want_send:
+                        # Rolle prüfen: Read darf nicht senden (Spielwiese hat keine Session = erlaubt)
+                        _role = get_user_role(request)
+                        if _role == "read":
+                            parts = []
+                            if subject: parts.append(f"Betreff: {subject}")
+                            parts.append(filled)
+                            parts.append("\n(Hinweis: Zum Versenden fehlt die Berechtigung – hier ist der Text zum Kopieren.)")
+                            response_text = "\n\n".join(parts)
+                        else:
+                            # Empfänger bestimmen
+                            recipient = (tdata.get("recipient") or "").strip()
+                            if "@" not in recipient:
+                                recipient = (contact.get("email") or "").strip()
+                            # Absender-Name + BCC aus Workspace
+                            sender_name = "velojo"; bcc = None
+                            if req.workspace_id:
+                                ws = supabase.table("workspaces").select("name, report_email").eq("id", req.workspace_id).execute()
+                                if ws.data:
+                                    sender_name = ws.data[0].get("name") or "velojo"
+                                    bcc = (ws.data[0].get("report_email") or "").strip() or None
+                            rname_parts = []
+                            if contact.get("company_name"): rname_parts.append(contact["company_name"])
+                            if contact.get("contact_name"): rname_parts.append(contact["contact_name"])
+                            rname = "\n".join(rname_parts)
+
+                            if not recipient:
+                                response_text = f"Ich habe das Dokument erstellt, aber {contact.get('company_name','der Kontakt')} hat keine E-Mail-Adresse. Bitte gib eine Adresse an."
+                            else:
+                                ok, err = await _send_pdf_email(subject, filled, recipient, sender_name, bcc, rname)
+                                if ok:
+                                    _u, _un = get_actor(request)
+                                    log_activity("template_send", contact_name=contact.get("company_name"),
+                                                 workspace_id=req.workspace_id, contact_id=contact.get("id"),
+                                                 details=f"PDF an {recipient} (per Chat)", user_id=_u, user_name=_un)
+                                    extra = " (Kopie an Report-Adresse)" if bcc else ""
+                                    response_text = f"Erledigt – das Dokument \"{template.get('name')}\" wurde als PDF an {recipient}{extra} gesendet."
+                                else:
+                                    parts = []
+                                    if subject: parts.append(f"Betreff: {subject}")
+                                    parts.append(filled)
+                                    parts.append(f"\n(Versand nicht möglich: {err} – hier ist der Text zum Kopieren.)")
+                                    response_text = "\n\n".join(parts)
+                    else:
+                        parts = []
+                        if subject:
+                            parts.append(f"Betreff: {subject}")
+                        parts.append(filled)
+                        response_text = "\n\n".join(parts)
             except Exception as e:
                 print(f"Template action error: {e}")
                 response_text = "Beim Erstellen aus der Vorlage ist ein Fehler aufgetreten."
@@ -1703,6 +1753,44 @@ def build_pdf_bytes(subject, body, sender_name="velojo", recipient_name=""):
 
     return bytes(pdf.output())
 
+async def _send_pdf_email(subject, body, recipient, sender_name="velojo", bcc=None, recipient_name=""):
+    """Baut ein PDF und verschickt es als E-Mail-Anhang über Resend.
+    Gibt (True, None) bei Erfolg oder (False, fehlertext) zurück."""
+    import base64
+    if not RESEND_API_KEY or not REPORT_FROM_EMAIL:
+        return False, "E-Mail-Versand ist serverseitig noch nicht konfiguriert."
+    if not recipient:
+        return False, "Keine Empfänger-Adresse vorhanden."
+    pdf_bytes = build_pdf_bytes(subject=subject, body=body, sender_name=sender_name, recipient_name=recipient_name)
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+    safe = re.sub(r"[^\w\-]+", "_", (subject or "Dokument")).strip("_")[:50] or "Dokument"
+    filename = f"{safe}.pdf"
+    mail_html = (
+        f"<div style=\"font-family:Arial,sans-serif;font-size:14px;color:#222\">"
+        f"<p>Guten Tag,</p>"
+        f"<p>anbei erhalten Sie das Dokument <strong>{subject or 'im Anhang'}</strong> als PDF.</p>"
+        f"<p>Mit freundlichen Grüßen<br>{sender_name}</p>"
+        f"</div>"
+    )
+    payload = {
+        "from": f"{sender_name} <{REPORT_FROM_EMAIL}>",
+        "to": [recipient],
+        "subject": subject or "Ihr Dokument",
+        "html": mail_html,
+        "attachments": [{"filename": filename, "content": pdf_b64}],
+    }
+    if bcc:
+        payload["bcc"] = [bcc]
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json=payload,
+        )
+    if r.status_code in (200, 201):
+        return True, None
+    return False, f"Resend-Fehler {r.status_code}"
+
 @app.post("/templates/send-pdf")
 async def send_template_pdf(request: Request):
     """Erzeugt aus Betreff+Text ein PDF und verschickt es als E-Mail-Anhang über Resend.
@@ -1835,6 +1923,78 @@ async def pdf_test():
         media_type="application/pdf",
         headers={"Content-Disposition": "inline; filename=velojo-test.pdf"}
     )
+
+# ─────────────────────────────────────────
+# FELD-KONFIGURATION je Workspace (field_schema)
+# ─────────────────────────────────────────
+
+FIELD_TYPES = ["text", "textarea", "number", "date", "boolean", "select"]
+
+def _slugify_key(label):
+    """Macht aus einem Label einen stabilen Schlüssel, z.B. 'Pflegestufe' -> 'pflegestufe'."""
+    s = (label or "").strip().lower()
+    umlaut = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}
+    for k, v in umlaut.items():
+        s = s.replace(k, v)
+    s = re.sub(r"[^a-z0-9]+", "_", s).strip("_")
+    return s or "feld"
+
+def _sanitize_field_schema(raw_fields):
+    """Prüft und normalisiert die Feldliste. Sorgt für eindeutige Schlüssel,
+    gültige Typen und saubere Auswahl-Optionen."""
+    result = []
+    used_keys = set()
+    for f in (raw_fields or []):
+        if not isinstance(f, dict):
+            continue
+        label = (f.get("label") or "").strip()
+        if not label:
+            continue
+        key = (f.get("key") or "").strip() or _slugify_key(label)
+        key = _slugify_key(key)  # auch vorhandene Schlüssel säubern
+        # Eindeutigkeit sicherstellen
+        base = key
+        n = 2
+        while key in used_keys:
+            key = f"{base}_{n}"
+            n += 1
+        used_keys.add(key)
+
+        ftype = (f.get("type") or "text").strip().lower()
+        if ftype not in FIELD_TYPES:
+            ftype = "text"
+
+        field = {"key": key, "label": label, "type": ftype}
+
+        if ftype == "select":
+            opts = f.get("options") or []
+            clean_opts = []
+            for o in opts:
+                o = str(o).strip()
+                if o and o not in clean_opts:
+                    clean_opts.append(o)
+            field["options"] = clean_opts
+
+        result.append(field)
+    return result
+
+@app.put("/workspaces/{workspace_id}/fields")
+async def update_workspace_fields(workspace_id: str, request: Request):
+    """Speichert die Feld-Definitionen (field_schema) eines Workspace.
+    Login-Version: nur Admin. Spielwiese (kein Login): frei."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    session = active_sessions.get(token)
+    if session and session.get("expires") and session["expires"] >= datetime.now():
+        if session.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Nur Admin darf Felder konfigurieren")
+    try:
+        body = await request.json()
+        fields = _sanitize_field_schema(body.get("fields"))
+        supabase.table("workspaces").update({"field_schema": fields}).eq("id", workspace_id).execute()
+        return {"success": True, "fields": fields}
+    except Exception as e:
+        print(f"Update fields error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/health")
 async def health():
