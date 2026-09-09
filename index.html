@@ -217,6 +217,22 @@
   .use-tpl-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
   .use-tpl-status { font-size: 12px; color: var(--text-muted); }
   .use-tpl-send { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
+
+  /* FELDER-KONFIGURATION */
+  .fields-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+  .field-row { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface2); }
+  .field-row-main { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .field-row-main input.field-label { flex: 2; min-width: 140px; }
+  .field-row-main select.field-type { flex: 1; min-width: 120px; }
+  .field-row input, .field-row select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; background: var(--surface); }
+  .field-row-buttons { display: flex; gap: 4px; margin-left: auto; }
+  .field-mini-btn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-muted); cursor: pointer; font-size: 13px; line-height: 1; }
+  .field-mini-btn:hover { color: var(--text); }
+  .field-mini-btn.del:hover { background: #fde8e8; color: var(--danger); border-color: transparent; }
+  .field-options { margin-top: 8px; }
+  .field-options input { width: 100%; box-sizing: border-box; }
+  .field-options-hint { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+  .fields-empty { font-size: 12px; color: var(--text-muted); padding: 16px; text-align: center; }
   #polishBtn:disabled { opacity: 0.6; cursor: default; }
 
   /* Chat */
@@ -455,6 +471,22 @@
   </div>
 </div>
 
+<!-- FELDER-KONFIGURATION MODAL -->
+<div class="modal-overlay" id="fieldsModal">
+  <div class="modal" style="max-width:720px">
+    <h3>Felder verwalten</h3>
+    <div class="modal-workspace-label" id="fieldsWorkspaceLabel"></div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Lege fest, welche Zusatz-Felder dieser Bereich hat. Änderungen gelten für alle Kontakte des Bereichs.</p>
+    <div class="fields-list" id="fieldsList"></div>
+    <button class="btn-secondary" style="margin-top:8px" onclick="addFieldRow()">+ Feld hinzufügen</button>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeFieldsModal()">Abbrechen</button>
+      <button class="btn-primary" onclick="saveFields()">Speichern</button>
+    </div>
+    <span id="fieldsStatus" style="font-size:12px;color:var(--text-muted);display:block;margin-top:8px"></span>
+  </div>
+</div>
+
 <header>
   <div class="logo">
     <div class="logo-mark">
@@ -486,6 +518,10 @@
     <button class="hdr-btn" onclick="openLogModal()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
       Logbuch
+    </button>
+    <button class="hdr-btn" onclick="openFieldsModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Felder
     </button>
     <button class="hdr-btn" onclick="clearHistory()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -1047,6 +1083,7 @@ document.getElementById('editModal').addEventListener('click', function(e) { if 
 document.getElementById('logModal').addEventListener('click', function(e) { if (e.target === this) closeLogModal(); });
 document.getElementById('templateModal').addEventListener('click', function(e) { if (e.target === this) closeTemplateModal(); });
 document.getElementById('useTemplateModal').addEventListener('click', function(e) { if (e.target === this) closeUseTemplate(); });
+document.getElementById('fieldsModal').addEventListener('click', function(e) { if (e.target === this) closeFieldsModal(); });
 
 // ── Bilder zu Kontakten ──────────────────────────────────────────────────────
 
@@ -1213,6 +1250,123 @@ function openLogModal() {
 }
 
 function closeLogModal() { document.getElementById('logModal').classList.remove('visible'); }
+
+// ── Felder-Konfiguration ─────────────────────────────────────────────────────
+
+var editingFields = [];
+var FIELD_TYPE_OPTIONS = [
+  { v: 'text', t: 'Text' },
+  { v: 'textarea', t: 'Mehrzeilig' },
+  { v: 'number', t: 'Zahl' },
+  { v: 'date', t: 'Datum' },
+  { v: 'boolean', t: 'Ja / Nein' },
+  { v: 'select', t: 'Auswahlliste' }
+];
+
+function openFieldsModal() {
+  if (!currentWorkspace) { alert('Bitte zuerst einen Bereich wählen.'); return; }
+  document.getElementById('fieldsWorkspaceLabel').textContent = (currentWorkspace.icon || '') + ' ' + currentWorkspace.name;
+  document.getElementById('fieldsStatus').textContent = '';
+  // Kopie der aktuellen Felder (abwärtskompatibel: Typ fehlt -> text)
+  var schema = currentWorkspace.field_schema || [];
+  editingFields = schema.map(function(f) {
+    return { key: f.key, label: f.label || '', type: f.type || 'text', options: (f.options || []).slice() };
+  });
+  renderFieldRows();
+  document.getElementById('fieldsModal').classList.add('visible');
+}
+
+function closeFieldsModal() { document.getElementById('fieldsModal').classList.remove('visible'); }
+
+function renderFieldRows() {
+  var list = document.getElementById('fieldsList');
+  if (!editingFields.length) {
+    list.innerHTML = '<div class="fields-empty">Noch keine Felder. Füge unten das erste hinzu.</div>';
+    return;
+  }
+  list.innerHTML = editingFields.map(function(f, i) {
+    var typeSelect = '<select class="field-type" onchange="onFieldTypeChange(' + i + ')">' +
+      FIELD_TYPE_OPTIONS.map(function(o) {
+        return '<option value="' + o.v + '"' + (f.type === o.v ? ' selected' : '') + '>' + o.t + '</option>';
+      }).join('') + '</select>';
+    var optionsBlock = '';
+    if (f.type === 'select') {
+      optionsBlock = '<div class="field-options">' +
+        '<input type="text" class="field-opts" value="' + escapeHtml((f.options || []).join(', ')) + '" placeholder="Option 1, Option 2, Option 3">' +
+        '<div class="field-options-hint">Auswahlmöglichkeiten durch Komma trennen</div>' +
+        '</div>';
+    }
+    return '<div class="field-row">' +
+      '<div class="field-row-main">' +
+      '<input type="text" class="field-label" value="' + escapeHtml(f.label) + '" placeholder="Feldname, z.B. Pflegestufe">' +
+      typeSelect +
+      '<div class="field-row-buttons">' +
+      '<button class="field-mini-btn" title="Nach oben" onclick="moveField(' + i + ',-1)">&#8593;</button>' +
+      '<button class="field-mini-btn" title="Nach unten" onclick="moveField(' + i + ',1)">&#8595;</button>' +
+      '<button class="field-mini-btn del" title="Löschen" onclick="deleteFieldRow(' + i + ')">&#10005;</button>' +
+      '</div>' +
+      '</div>' + optionsBlock +
+      '</div>';
+  }).join('');
+}
+
+function syncFieldsFromDOM() {
+  var rows = document.querySelectorAll('#fieldsList .field-row');
+  rows.forEach(function(row, i) {
+    if (!editingFields[i]) return;
+    var label = row.querySelector('.field-label');
+    var type = row.querySelector('.field-type');
+    var opts = row.querySelector('.field-opts');
+    if (label) editingFields[i].label = label.value;
+    if (type) editingFields[i].type = type.value;
+    if (opts) editingFields[i].options = opts.value.split(',').map(function(s){ return s.trim(); }).filter(function(s){ return s; });
+  });
+}
+
+function onFieldTypeChange(i) { syncFieldsFromDOM(); renderFieldRows(); }
+
+function addFieldRow() {
+  syncFieldsFromDOM();
+  editingFields.push({ label: '', type: 'text', options: [] });
+  renderFieldRows();
+}
+
+function deleteFieldRow(i) {
+  syncFieldsFromDOM();
+  editingFields.splice(i, 1);
+  renderFieldRows();
+}
+
+function moveField(i, dir) {
+  syncFieldsFromDOM();
+  var j = i + dir;
+  if (j < 0 || j >= editingFields.length) return;
+  var tmp = editingFields[i]; editingFields[i] = editingFields[j]; editingFields[j] = tmp;
+  renderFieldRows();
+}
+
+function saveFields() {
+  syncFieldsFromDOM();
+  var status = document.getElementById('fieldsStatus');
+  var clean = editingFields.filter(function(f) { return (f.label || '').trim(); });
+  status.style.color = 'var(--text-muted)';
+  status.textContent = 'Speichert…';
+  fetch(BACKEND_URL + "/workspaces/" + currentWorkspace.id + "/fields", {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: clean })
+  }).then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(res){
+      if (res.ok && res.d.success) {
+        currentWorkspace.field_schema = res.d.fields;
+        status.style.color = 'var(--success)';
+        status.textContent = 'Gespeichert ✓';
+        setTimeout(closeFieldsModal, 700);
+      } else {
+        status.style.color = 'var(--danger)';
+        status.textContent = res.d.detail || res.d.error || 'Fehler beim Speichern';
+      }
+    }).catch(function(){ status.style.color = 'var(--danger)'; status.textContent = 'Verbindungsfehler'; });
+}
 
 function setLogPeriod(period) {
   logPeriod = period;
