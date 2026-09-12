@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>velojo.ai – Playground</title>
+<title>velojo – Playground</title>
 
 <!-- PWA -->
 <link rel="manifest" href="/kundendb/manifest.json" />
@@ -233,6 +233,9 @@
   .field-options input { width: 100%; box-sizing: border-box; }
   .field-options-hint { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
   .fields-empty { font-size: 12px; color: var(--text-muted); padding: 16px; text-align: center; }
+  .cf-check { display: flex; align-items: center; }
+  .cf-check-label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .cf-check-label input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
   #polishBtn:disabled { opacity: 0.6; cursor: default; }
 
   /* Chat */
@@ -494,7 +497,7 @@
     </div>
     <div>
       <div class="logo-name-row">
-        <span class="logo-name">velojo</span><span class="logo-dotai">.ai</span>
+        <span class="logo-name">velojo</span>
       </div>
       <div class="logo-tag">Playground</div>
     </div>
@@ -1006,25 +1009,58 @@ function renderCustomFields(contact) {
 
   var html = '<div class="modal-section-title">Workspace-Felder</div>';
 
-  // Kurze Felder gesammelt im Grid, lange einzeln
-  var shortFields = schema.filter(function(f) { return LONG_FIELDS.indexOf(f.key) === -1; });
-  var longFields  = schema.filter(function(f) { return LONG_FIELDS.indexOf(f.key) !== -1; });
-
-  if (shortFields.length) {
-    html += '<div class="modal-grid">';
-    shortFields.forEach(function(field) {
-      var val = escapeHtml(existingValues[field.key] || '');
-      html += '<div class="modal-field"><label>' + escapeHtml(field.label) + '</label>' +
-        '<input type="text" id="cf_' + field.key + '" value="' + val + '"></div>';
-    });
-    html += '</div>';
+  // Effektiven Typ bestimmen (abwärtskompatibel)
+  function effType(field) {
+    if (field.type) return field.type;
+    if (LONG_FIELDS.indexOf(field.key) !== -1) return 'textarea';
+    return 'text';
   }
 
-  longFields.forEach(function(field) {
-    var val = escapeHtml(existingValues[field.key] || '');
-    html += '<div class="modal-field"><label>' + escapeHtml(field.label) + '</label>' +
-      '<textarea id="cf_' + field.key + '" rows="2">' + val + '</textarea></div>';
-  });
+  // Ein einzelnes Feld als HTML rendern
+  function fieldHtml(field) {
+    var t = effType(field);
+    var raw = existingValues[field.key];
+    var id = 'cf_' + field.key;
+    var labelHtml = '<label>' + escapeHtml(field.label) + '</label>';
+
+    if (t === 'boolean') {
+      var checked = (raw === true || raw === 'true' || raw === 'Ja' || raw === 'ja' || raw === 1 || raw === '1') ? ' checked' : '';
+      return '<div class="modal-field cf-check"><label class="cf-check-label">' +
+        '<input type="checkbox" id="' + id + '"' + checked + '> ' + escapeHtml(field.label) + '</label></div>';
+    }
+    if (t === 'select') {
+      var opts = field.options || [];
+      var cur = raw == null ? '' : String(raw);
+      var optionsHtml = '<option value="">– bitte wählen –</option>' +
+        opts.map(function(o) {
+          var sel = (String(o) === cur) ? ' selected' : '';
+          return '<option value="' + escapeHtml(o) + '"' + sel + '>' + escapeHtml(o) + '</option>';
+        }).join('');
+      return '<div class="modal-field">' + labelHtml + '<select id="' + id + '">' + optionsHtml + '</select></div>';
+    }
+    if (t === 'textarea') {
+      return '<div class="modal-field">' + labelHtml + '<textarea id="' + id + '" rows="2">' + escapeHtml(raw || '') + '</textarea></div>';
+    }
+    if (t === 'number') {
+      return '<div class="modal-field">' + labelHtml + '<input type="number" id="' + id + '" value="' + escapeHtml(raw || '') + '"></div>';
+    }
+    if (t === 'date') {
+      return '<div class="modal-field">' + labelHtml + '<input type="date" id="' + id + '" value="' + escapeHtml(raw || '') + '"></div>';
+    }
+    // text (Standard)
+    return '<div class="modal-field">' + labelHtml + '<input type="text" id="' + id + '" value="' + escapeHtml(raw || '') + '"></div>';
+  }
+
+  // Kurze Felder ins Grid, lange (Textarea) einzeln in voller Breite
+  var gridFields = schema.filter(function(f) { return effType(f) !== 'textarea'; });
+  var wideFields = schema.filter(function(f) { return effType(f) === 'textarea'; });
+
+  if (gridFields.length) {
+    html += '<div class="modal-grid">';
+    gridFields.forEach(function(f) { html += fieldHtml(f); });
+    html += '</div>';
+  }
+  wideFields.forEach(function(f) { html += fieldHtml(f); });
 
   container.innerHTML = html;
 }
@@ -1035,7 +1071,13 @@ function collectCustomFields() {
   var result = {};
   schema.forEach(function(field) {
     var el = document.getElementById('cf_' + field.key);
-    if (el && el.value.trim()) result[field.key] = el.value.trim();
+    if (!el) return;
+    var t = field.type || (LONG_FIELDS.indexOf(field.key) !== -1 ? 'textarea' : 'text');
+    if (t === 'boolean') {
+      result[field.key] = el.checked ? 'Ja' : 'Nein';
+    } else if (el.value != null && String(el.value).trim() !== '') {
+      result[field.key] = String(el.value).trim();
+    }
   });
   return result;
 }
