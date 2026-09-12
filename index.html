@@ -510,25 +510,25 @@
         <span class="ws-caret">&#x25BE;</span>
       </button>
       <div class="workspace-dropdown" id="workspaceDropdown">
-        <div class="workspace-dropdown-header">Bereich wechseln</div>
+        <div class="workspace-dropdown-header" data-i18n="ws_switch">Bereich wechseln</div>
         <div id="workspaceOptions"></div>
       </div>
     </div>
     <button class="hdr-btn" id="sidebarToggle" onclick="toggleSidebar()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
-      Kontakte
+      <span data-i18n="nav_contacts">Kontakte</span>
     </button>
     <button class="hdr-btn" onclick="openLogModal()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
-      Logbuch
+      <span data-i18n="nav_log">Logbuch</span>
     </button>
     <button class="hdr-btn" onclick="openFieldsModal()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Felder
+      <span data-i18n="nav_fields">Felder</span>
     </button>
     <button class="hdr-btn" onclick="clearHistory()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-      Neu
+      <span data-i18n="nav_new">Neu</span>
     </button>
     <div class="lang-selector">
       <button class="lang-btn active" onclick="setLang('de', this)">DE</button>
@@ -543,24 +543,24 @@
     <div class="sidebar-header">
       <span id="sidebarHeader">Kontakte</span>
       <div class="sidebar-header-tabs">
-        <span class="sidebar-header-tab active" id="tabContactsBtn" onclick="switchSidebarTab('contacts')">Aktiv</span>
-        <span class="sidebar-header-tab" id="tabTrashBtn" onclick="switchSidebarTab('trash')">Papierkorb</span>
-        <span class="sidebar-header-tab" id="tabTemplatesBtn" onclick="switchSidebarTab('templates')">Vorlagen</span>
+        <span class="sidebar-header-tab active" id="tabContactsBtn" onclick="switchSidebarTab('contacts')" data-i18n="tab_active">Aktiv</span>
+        <span class="sidebar-header-tab" id="tabTrashBtn" onclick="switchSidebarTab('trash')" data-i18n="tab_trash">Papierkorb</span>
+        <span class="sidebar-header-tab" id="tabTemplatesBtn" onclick="switchSidebarTab('templates')" data-i18n="tab_templates">Vorlagen</span>
       </div>
     </div>
     <div class="sidebar-actions" id="sidebarActionsRow">
       <button class="sidebar-action-btn" onclick="exportCSV()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export
+        <span data-i18n="act_export">Export</span>
       </button>
       <label class="sidebar-action-btn">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Import
+        <span data-i18n="act_import">Import</span>
         <input type="file" id="csvImport" accept=".csv" style="display:none" onchange="importCSV(this)">
       </label>
     </div>
     <div class="sidebar-search">
-      <input type="text" id="searchInput" placeholder="Suchen..." oninput="filterContacts()">
+      <input type="text" id="searchInput" data-i18n-ph="search_ph" placeholder="Suchen..." oninput="filterContacts()">
     </div>
     <div class="contacts-list" id="contactsList">
       <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Wird geladen...</div>
@@ -581,25 +581,25 @@
         <div class="welcome-mark">
           <svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg>
         </div>
-        <h2>Guten Tag.</h2>
-        <p>Sprich oder schreib mit mir. Ich merke mir alles und denke mit.</p>
+        <h2 data-i18n="welcome_title">Guten Tag.</h2>
+        <p data-i18n="welcome_sub">Sprich oder schreib mit mir. Ich merke mir alles und denke mit.</p>
         <div class="suggestions">
-          <div class="suggestion" onclick="useSuggestion(this)">Was weisst du ueber Mueller GmbH?</div>
-          <div class="suggestion" onclick="useSuggestion(this)">Welche Eintraege sind inaktiv?</div>
-          <div class="suggestion" onclick="useSuggestion(this)">Trag ein: Schmidt AG hat heute angerufen</div>
-          <div class="suggestion" onclick="useSuggestion(this)">Qui sont mes clients interesses?</div>
+          <div class="suggestion" onclick="useSuggestion(this)" data-i18n="sugg1">Was weisst du ueber Mueller GmbH?</div>
+          <div class="suggestion" onclick="useSuggestion(this)" data-i18n="sugg2">Welche Eintraege sind inaktiv?</div>
+          <div class="suggestion" onclick="useSuggestion(this)" data-i18n="sugg3">Trag ein: Schmidt AG hat heute angerufen</div>
+          <div class="suggestion" onclick="useSuggestion(this)" data-i18n="sugg4">Qui sont mes clients interesses?</div>
         </div>
       </div>
     </div>
     <div class="input-area">
       <div class="input-wrapper">
-        <textarea id="messageInput" placeholder="Schreib oder sprich mit mir..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <textarea id="messageInput" data-i18n-ph="input_ph" placeholder="Schreib oder sprich mit mir..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button class="action-btn mic-btn" id="micBtn" title="Halten zum Sprechen" onmousedown="startMic()" onmouseup="stopMic()" onmouseleave="stopMic()" ontouchstart="startMic(event)" ontouchend="stopMic()">&#x1F3A4;</button>
         <button class="action-btn send-btn" id="sendBtn" onclick="sendMessage()" title="Senden">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </div>
-      <div class="input-hint">Return zum Senden &middot; &#x1F3A4; halten zum Sprechen</div>
+      <div class="input-hint" data-i18n="input_hint">Return zum Senden &middot; &#x1F3A4; halten zum Sprechen</div>
     </div>
   </div>
 </div>
@@ -610,6 +610,64 @@
 var BACKEND_URL = "https://kundendb.onrender.com";
 var audioEl = document.getElementById('audioPlayer');
 var currentLang = "de";
+
+var I18N = {
+  de: {
+    nav_contacts: "Kontakte", nav_log: "Logbuch", nav_fields: "Felder", nav_new: "Neu",
+    ws_switch: "Bereich wechseln",
+    tab_active: "Aktiv", tab_trash: "Papierkorb", tab_templates: "Vorlagen",
+    act_export: "Export", act_import: "Import",
+    search_ph: "Suchen...",
+    welcome_title: "Guten Tag.",
+    welcome_sub: "Sprich oder schreib mit mir. Ich merke mir alles und denke mit.",
+    sugg1: "Was weisst du ueber Mueller GmbH?", sugg2: "Welche Eintraege sind inaktiv?",
+    sugg3: "Trag ein: Schmidt AG hat heute angerufen", sugg4: "Qui sont mes clients interesses?",
+    input_ph: "Schreib oder sprich mit mir...",
+    input_hint: "Return zum Senden \u00b7 \uD83C\uDFA4 halten zum Sprechen",
+    chat_new_title: "Neues Gespraech.", chat_new_sub: "Womit kann ich dir helfen?"
+  },
+  fr: {
+    nav_contacts: "Contacts", nav_log: "Journal", nav_fields: "Champs", nav_new: "Nouveau",
+    ws_switch: "Changer de zone",
+    tab_active: "Actifs", tab_trash: "Corbeille", tab_templates: "Mod\u00e8les",
+    act_export: "Exporter", act_import: "Importer",
+    search_ph: "Rechercher...",
+    welcome_title: "Bonjour.",
+    welcome_sub: "Parle ou \u00e9cris-moi. Je retiens tout et je r\u00e9fl\u00e9chis avec toi.",
+    sugg1: "Que sais-tu sur Mueller GmbH ?", sugg2: "Quelles fiches sont inactives ?",
+    sugg3: "Note : Schmidt AG a appel\u00e9 aujourd'hui", sugg4: "Qui sont mes clients int\u00e9ress\u00e9s ?",
+    input_ph: "\u00c9cris ou parle-moi...",
+    input_hint: "Entr\u00e9e pour envoyer \u00b7 \uD83C\uDFA4 maintenir pour parler",
+    chat_new_title: "Nouvelle conversation.", chat_new_sub: "Comment puis-je t'aider ?"
+  },
+  en: {
+    nav_contacts: "Contacts", nav_log: "Log", nav_fields: "Fields", nav_new: "New",
+    ws_switch: "Switch area",
+    tab_active: "Active", tab_trash: "Trash", tab_templates: "Templates",
+    act_export: "Export", act_import: "Import",
+    search_ph: "Search...",
+    welcome_title: "Hello.",
+    welcome_sub: "Talk or write to me. I remember everything and think along.",
+    sugg1: "What do you know about Mueller GmbH?", sugg2: "Which entries are inactive?",
+    sugg3: "Log: Schmidt AG called today", sugg4: "Who are my interested clients?",
+    input_ph: "Write or talk to me...",
+    input_hint: "Enter to send \u00b7 \uD83C\uDFA4 hold to speak",
+    chat_new_title: "New conversation.", chat_new_sub: "How can I help you?"
+  }
+};
+
+function applyLanguage(lang) {
+  var dict = I18N[lang] || I18N.de;
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var k = el.getAttribute('data-i18n');
+    if (dict[k] != null) el.textContent = dict[k];
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(function(el) {
+    var k = el.getAttribute('data-i18n-ph');
+    if (dict[k] != null) el.placeholder = dict[k];
+  });
+  try { localStorage.setItem('velo_lang', lang); } catch (e) {}
+}
 var allContacts = [];
 var trashContacts = [];
 var sidebarTab = "contacts";
@@ -635,6 +693,9 @@ var savedWsId = localStorage.getItem('velo_workspace_id');
 audioEl.volume = 0.5;
 
 function initApp() {
+  var savedLang = null;
+  try { savedLang = localStorage.getItem('velo_lang'); } catch (e) {}
+  if (savedLang && I18N[savedLang]) setLang(savedLang, null);
   var wsName = document.getElementById('wsName');
   var sendBtn = document.getElementById('sendBtn');
   var msgInput = document.getElementById('messageInput');
@@ -750,13 +811,18 @@ function toggleSidebar() {
 
 function clearHistory() {
   conversationHistory = [];
-  document.getElementById('messages').innerHTML = '<div class="welcome" id="welcome"><div class="welcome-mark"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg></div><h2>Neues Gespraech.</h2><p>Womit kann ich dir helfen?</p></div>';
+  document.getElementById('messages').innerHTML = '<div class="welcome" id="welcome"><div class="welcome-mark"><svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg></div><h2 data-i18n="chat_new_title">Neues Gespraech.</h2><p data-i18n="chat_new_sub">Womit kann ich dir helfen?</p></div>';
+  applyLanguage(currentLang);
 }
 
 function setLang(lang, btn) {
   currentLang = lang;
   document.querySelectorAll('.lang-btn').forEach(function(b) { b.classList.remove('active'); });
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
+  else document.querySelectorAll('.lang-btn').forEach(function(b) {
+    if (b.textContent.trim().toLowerCase() === lang) b.classList.add('active');
+  });
+  applyLanguage(lang);
 }
 
 function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
