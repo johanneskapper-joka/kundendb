@@ -90,6 +90,8 @@ async def login(request: Request):
         "role": user["role"],
         "workspace_id": user["workspace_id"],
         "workspace": user.get("workspaces"),
+        "company_id": user.get("company_id"),
+        "is_platform_owner": bool(user.get("is_platform_owner")),
         "expires": datetime.now() + timedelta(hours=8)
     }
 
@@ -98,7 +100,9 @@ async def login(request: Request):
         "role": user["role"],
         "full_name": user["full_name"],
         "workspace_id": user["workspace_id"],
-        "workspace": user.get("workspaces")
+        "workspace": user.get("workspaces"),
+        "company_id": user.get("company_id"),
+        "is_platform_owner": bool(user.get("is_platform_owner"))
     }
 
 @app.post("/auth/logout")
@@ -125,6 +129,49 @@ def get_session(request: Request):
     if not session or session["expires"] < datetime.now():
         raise HTTPException(status_code=401, detail="Nicht eingeloggt")
     return session
+
+# ─────────────────────────────────────────
+# FIRMEN (nur Plattform-Eigentümer)
+# ─────────────────────────────────────────
+
+def require_platform_owner(request: Request):
+    """Erlaubt nur dem Plattform-Eigentümer Zugriff. Wirft sonst 403."""
+    session = get_session(request)
+    if not session.get("is_platform_owner"):
+        raise HTTPException(status_code=403, detail="Nur der Plattform-Eigentümer darf Firmen verwalten")
+    return session
+
+@app.get("/companies")
+async def list_companies(request: Request):
+    require_platform_owner(request)
+    result = supabase.table("companies").select("*").order("name").execute()
+    return result.data
+
+@app.post("/companies")
+async def create_company(request: Request):
+    require_platform_owner(request)
+    try:
+        body = await request.json()
+        name = (body.get("name") or "").strip()
+        if not name:
+            return JSONResponse({"error": "Firmenname erforderlich"}, status_code=400)
+        result = supabase.table("companies").insert({"name": name}).execute()
+        return {"success": True, "company": result.data[0] if result.data else None}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.put("/companies/{company_id}")
+async def rename_company(company_id: str, request: Request):
+    require_platform_owner(request)
+    try:
+        body = await request.json()
+        name = (body.get("name") or "").strip()
+        if not name:
+            return JSONResponse({"error": "Firmenname erforderlich"}, status_code=400)
+        supabase.table("companies").update({"name": name}).eq("id", company_id).execute()
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/users")
 async def get_users(request: Request):
